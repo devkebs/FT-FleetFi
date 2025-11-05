@@ -151,3 +151,119 @@ This project is licensed under the MIT License — free for educational and hack
 
 
 
+
+
+
+
+
+
+
+
+
+
+/docs/FleetFi_Solution_Architecture.md
+
+
+# FleetFi Solution Architecture — How It Works
+
+FleetFi connects electric vehicle investors, fleet operators, and riders through a tokenized co-ownership platform.
+
+## Core System Flow
+1. **Investor Interface (FleetFi Dashboard)**
+   - Investors buy fractional ownership of electric vehicles via the dashboard.
+   - Each share (token) represents a % ownership of an EV asset and its revenue rights.
+
+2. **Vehicle and Operations Layer**
+   - Vehicles are registered in FleetFi’s database with unique IDs and telemetry inputs (battery %, distance, swap count).
+   - Fleet operations and swap activities (powered by biogas-based energy stations) are logged in real time.
+
+3. **Revenue and Tokenization Logic**
+   - Each completed ride generates revenue.
+   - The system simulates automatic allocation of earnings into a shared pool for:
+     - EV investors (ROI)
+     - Riders (income)
+     - FT (management and maintenance fees)
+
+4. **Blockchain & Custody Integration (via Trovotech)**
+   - In full deployment, Trovotech’s SEC-aligned tokenization API will issue asset-backed tokens.
+   - Tokens will be held under a **Trustee-Custody Layer**, ensuring investor protection and legal compliance.
+   - Future integration will use **Bantu blockchain** for transparent asset registry and ROI disbursement.
+
+## Architecture Diagram
+![FleetFi × Trovotech Integration — Custody and Tokenization Flow](./docs/FT_Trovotech_Architecture.png)
+
+## Tech Stack
+- **Frontend:** Google AI Studio / Bubble MVP (UI logic)
+- **Backend:** Firebase mock + API logic for rides & swaps
+- **Data Simulation:** Telemetry CSV + Admin Dashboard
+- **Future Integration:** Trovotech API, Qoray IoT feed, Trustee node
+
+
+
+
+
+
+
+
+
+
+# FleetFi User Journey Map
+
+## 1. Investor Journey
+- **Goal:** Earn ROI by co-owning EVs.
+1. Logs in on FleetFi dashboard.
+2. Views available EVs and tokenized shares.
+3. Buys fractional ownership (mock token purchase).
+4. Tracks returns and swap activity.
+5. Receives ROI updates monthly (future blockchain link).
+
+## 2. Rider Journey
+- **Goal:** Earn daily income by driving an FT-managed EV.
+1. Registers with FT fleet operator.
+2. Gets assigned a vehicle.
+3. Swaps batteries at biogas-powered stations.
+4. Income auto-logged and payout simulated.
+
+## 3. Operator Journey
+- **Goal:** Manage fleet efficiency and station uptime.
+1. Uses the operator dashboard.
+2. Monitors battery levels, location, and status.
+3. Logs maintenance and charging operations.
+4. Reports profit summaries to investors.
+
+## User Experience Flow Summary
+Investor → FleetFi Platform → Fleet Operation → Swap Station → Rider → Revenue Distribution → Investor
+
+
+
+
+
+
+
+# FleetFi Post-Bootcamp Action Plan
+
+## Phase 1: (Nov–Dec 2025) — Prototype Expansion
+- Integrate real Qoray IoT telemetry feed for vehicle data.
+- Implement Trovotech sandbox for token issuance test.
+- Recruit 3 female riders for pilot testing in Ilorin.
+
+## Phase 2: (Q1 2026) — Pilot Launch
+- Deploy 6 EV tricycles (E-Keke) under co-ownership structure.
+- Launch first biogas-powered swap station (5m³ digester).
+- Activate investor dashboard beta for 20 token holders.
+
+## Phase 3: (Q2–Q3 2026) — Regulatory & Scale-up
+- Finalize trustee partnership under SEC-compliant model.
+- Raise ₦20M pre-seed to scale to 20+ EVs and 3 swap hubs.
+- Franchise swap operations with OEM partnerships.
+
+## Phase 4: (Q4 2026+) — National Rollout
+- Expand to 5 Nigerian states.
+- Integrate ESG & carbon tracking for investor reporting.
+- Launch regional investor portal (FleetFi Africa).
+
+**Key Success Metrics:**
+- 50+ riders onboarded (40% women)
+- ₦100M in tokenized EV assets
+- 3 biogas swap hubs operational
+
