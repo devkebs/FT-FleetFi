@@ -148,6 +148,27 @@ We are seeking:
 
 This project is licensed under the MIT License — free for educational and hackathon use.
 
+---
+
+## 📚 User Guides & Documentation
+
+Role-specific and operational guides are available:
+
+- Investor Guide: `docs/user-guides/INVESTOR_GUIDE.md`
+- Operator Guide: `docs/user-guides/OPERATOR_GUIDE.md`
+- Admin Guide: `docs/user-guides/ADMIN_GUIDE.md`
+- Quickstart (Roles Overview): `docs/user-guides/QUICKSTART_USER_ROLES.md`
+- Glossary (Domain Terms): `docs/user-guides/GLOSSARY.md`
+
+Additional technical and integration docs:
+- API Reference: `docs/API_REFERENCE.md`
+- Trovotech Integration: `docs/TROVOTECH_INTEGRATION.md`
+- IdentityPass KYC Integration: `docs/KYC_IDENTITYPASS_INTEGRATION.md`
+- Live Telemetry Quickstart: `docs/LIVE_TELEMETRY_QUICKSTART.md`
+- Solution Architecture: `docs/FleetFi_Solution_Architecture.md`
+
+---
+
 
 
 
