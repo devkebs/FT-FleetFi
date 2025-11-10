@@ -24,8 +24,6 @@ class Token extends Model
         'trustee_ref',
         'tx_hash',
         'chain',
-        'chain',
-        'minted_at',
     ];
 
     protected $casts = [
@@ -34,7 +32,6 @@ class Token extends Model
         'current_value' => 'decimal:2',
         'total_returns' => 'decimal:2',
         'purchase_date' => 'datetime',
-        'minted_at' => 'datetime',
         'minted_at' => 'datetime',
     ];
 
