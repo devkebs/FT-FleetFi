@@ -5,6 +5,7 @@ export enum Page {
   OperatorDashboard,
   ESGImpact,
   SLXMarketplace,
+  Riders,
 }
 
 export type AssetType = 'EV' | 'Battery' | 'Cabinet';
@@ -45,4 +46,17 @@ export interface SLXListing {
   soh: number;
   salvageValue: number; // in Naira
   listedAt: Date;
+}
+
+export interface Rider {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  vehicleAssigned: string;
+  status: 'active' | 'inactive' | 'on-trip';
+  totalTrips: number;
+  totalEarnings: number;
+  rating: number;
+  joinedDate: string;
 }

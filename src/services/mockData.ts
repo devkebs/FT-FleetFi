@@ -1,0 +1,151 @@
+import { Asset, Token, Payout, SLXListing } from '../types';
+
+export const initialAssets: Asset[] = [
+  {
+    id: 'EV-001',
+    type: 'EV',
+    model: 'E-Keke Pro 2024',
+    status: 'In Use',
+    soh: 95,
+    swaps: 450,
+    location: 'Ilorin Central',
+    originalValue: 1500000,
+    dailySwaps: 12,
+  },
+  {
+    id: 'EV-002',
+    type: 'EV',
+    model: 'E-Keke Pro 2024',
+    status: 'Available',
+    soh: 92,
+    swaps: 380,
+    location: 'Ilorin West',
+    originalValue: 1500000,
+    dailySwaps: 10,
+  },
+  {
+    id: 'BAT-001',
+    type: 'Battery',
+    model: 'LFP 48V 100Ah',
+    status: 'Charging',
+    soh: 98,
+    swaps: 120,
+    location: 'Swap Station Alpha',
+    originalValue: 450000,
+    dailySwaps: 15,
+  },
+  {
+    id: 'CAB-001',
+    type: 'Cabinet',
+    model: 'SwapBox 12-Bay',
+    status: 'In Use',
+    soh: 100,
+    swaps: 2400,
+    location: 'Swap Station Alpha',
+    originalValue: 2500000,
+    dailySwaps: 45,
+  },
+  {
+    id: 'EV-003',
+    type: 'EV',
+    model: 'E-Keke Lite 2023',
+    status: 'Maintenance',
+    soh: 88,
+    swaps: 620,
+    location: 'Ilorin South',
+    originalValue: 1200000,
+    dailySwaps: 8,
+  },
+];
+
+export const initialTokens: Token[] = [
+  {
+    id: 'TKN-001',
+    investorId: 'INV-001',
+    assetId: 'EV-001',
+    fraction: 0.25,
+    investAmount: 375000,
+    roiProjection: 56250,
+    mintedAt: new Date('2024-01-15'),
+  },
+  {
+    id: 'TKN-002',
+    investorId: 'INV-001',
+    assetId: 'EV-002',
+    fraction: 0.15,
+    investAmount: 225000,
+    roiProjection: 33750,
+    mintedAt: new Date('2024-02-01'),
+  },
+  {
+    id: 'TKN-003',
+    investorId: 'INV-002',
+    assetId: 'EV-001',
+    fraction: 0.30,
+    investAmount: 450000,
+    roiProjection: 67500,
+    mintedAt: new Date('2024-01-20'),
+  },
+  {
+    id: 'TKN-004',
+    investorId: 'INV-001',
+    assetId: 'BAT-001',
+    fraction: 0.40,
+    investAmount: 180000,
+    roiProjection: 27000,
+    mintedAt: new Date('2024-03-01'),
+  },
+];
+
+export const initialPayouts: Payout[] = [
+  {
+    payoutId: 'PAY-001',
+    tokenId: 'TKN-001',
+    month: '2024-10',
+    grossRevenue: 240000,
+    investorShare: 60000,
+  },
+  {
+    payoutId: 'PAY-002',
+    tokenId: 'TKN-002',
+    month: '2024-10',
+    grossRevenue: 195000,
+    investorShare: 29250,
+  },
+  {
+    payoutId: 'PAY-003',
+    tokenId: 'TKN-003',
+    month: '2024-10',
+    grossRevenue: 240000,
+    investorShare: 72000,
+  },
+  {
+    payoutId: 'PAY-004',
+    tokenId: 'TKN-001',
+    month: '2024-09',
+    grossRevenue: 225000,
+    investorShare: 56250,
+  },
+  {
+    payoutId: 'PAY-005',
+    tokenId: 'TKN-004',
+    month: '2024-10',
+    grossRevenue: 135000,
+    investorShare: 54000,
+  },
+];
+
+export const initialSLXListings: SLXListing[] = [
+  {
+    assetId: 'EV-003',
+    soh: 88,
+    salvageValue: 960000,
+    listedAt: new Date('2024-10-15'),
+  },
+  {
+    assetId: 'BAT-002',
+    soh: 75,
+    salvageValue: 270000,
+    listedAt: new Date('2024-10-20'),
+  },
+];

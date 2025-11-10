@@ -1,0 +1,23 @@
+version: '3.9'
+services:
+  app:
+    build: .
+    container_name: fleetfi-app
+    ports:
+      - "8000:8000"
+      - "5173:5173"
+    volumes:
+      - .:/var/www/html
+    working_dir: /var/www/html/backend
+    command: bash -c "php artisan serve --host=0.0.0.0 --port=8000 & cd /var/www/html && npm install && npm run dev"
+    environment:
+      APP_ENV: local
+      APP_DEBUG: 'true'
+      APP_URL: http://localhost:8000
+    # SQLite file persists on host; for production switch to MySQL/Postgres
+    # networks:
+    #   - fleetfi-net
+
+# networks:
+#   fleetfi-net:
+#     driver: bridge
