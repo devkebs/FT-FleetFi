@@ -18,9 +18,9 @@ export function ForgotPassword() {
   const onSubmit = async (data: ResetPasswordFormData) => {
     try {
       await requestPasswordReset(data.email);
-      notify.success('Password reset instructions have been sent to your email');
+      notify('Password reset instructions have been sent to your email', 'success');
     } catch (err) {
-      notify.error(err instanceof Error ? err.message : 'Failed to request password reset');
+      notify(err instanceof Error ? err.message : 'Failed to request password reset', 'danger');
     }
   };
 

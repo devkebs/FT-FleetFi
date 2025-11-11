@@ -55,3 +55,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     </>
   );
 }
+// Helper function to trigger toasts
+export function notify(message: string, type: 'success' | 'info' | 'warning' | 'danger' = 'info', title?: string, timeout?: number) {
+  window.dispatchEvent(new CustomEvent('app:toast', {
+    detail: { message, type, title, timeout }
+  }));
+}
