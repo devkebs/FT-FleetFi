@@ -14,6 +14,7 @@ class Token extends Model
         'user_id',
         'token_id',
         'shares',
+        'fraction_owned',
         'investment_amount',
         'current_value',
         'total_returns',
@@ -28,6 +29,7 @@ class Token extends Model
 
     protected $casts = [
         'shares' => 'decimal:4',
+        'fraction_owned' => 'decimal:4',
         'investment_amount' => 'decimal:2',
         'current_value' => 'decimal:2',
         'total_returns' => 'decimal:2',

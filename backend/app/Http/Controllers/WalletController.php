@@ -18,51 +18,45 @@ class WalletController extends Controller
      */
     public function create(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'user_id' => 'required|exists:users,id',
+        $request->validate([
+            'currency' => 'nullable|string|max:10',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $user = User::find($request->user_id);
+        $user = $request->user();
 
         // Check if wallet already exists
-        $existingWallet = Wallet::where('user_id', $user->id)->first();
-        if ($existingWallet) {
-            return response()->json([
-                'message' => 'Wallet already exists for this user',
-                'wallet' => $existingWallet
-            ], 200);
+        if ($user->wallet) {
+            return response()->json(['message' => 'Wallet already exists'], 400);
         }
 
         try {
+            // Generate unique wallet address
+            $walletAddress = '0x' . bin2hex(random_bytes(20));
+
             // TODO: Call Trovotech API for wallet creation
             // $response = Http::post('https://trovotech-api.com/wallet/create', [
-            //     'name' => $user->name,
+            //     'user_id' => $user->id,
             //     'email' => $user->email,
-            //     'phone' => $user->phone
             // ]);
+            // $walletData = $response->json();
 
-            // Mock response for MVP
+            // Create wallet in database
             $wallet = Wallet::create([
                 'user_id' => $user->id,
-                'wallet_address' => '0x' . Str::random(40),
+                'wallet_address' => $walletAddress,
                 'trovotech_wallet_id' => 'TROVO_' . Str::random(16),
                 'balance' => 0,
-                'status' => 'active'
+                'currency' => $request->input('currency', 'NGN'),
+                'status' => 'active',
             ]);
 
             return response()->json([
                 'message' => 'Wallet created successfully',
-                'wallet' => $wallet
+                'wallet' => $wallet,
             ], 201);
+
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to create wallet',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Failed to create wallet'], 500);
         }
     }
 
@@ -119,8 +113,9 @@ class WalletController extends Controller
     public function transfer(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'from_user_id' => 'required|exists:users,id',
-            'to_address' => 'required|string',
+            'from_user_id' => 'nullable|exists:users,id',
+            'to_address' => 'required_without:recipient_email|string',
+            'recipient_email' => 'required_without:to_address|email|exists:users,email',
             'amount' => 'required|numeric|min:0.01',
         ]);
 
@@ -128,7 +123,9 @@ class WalletController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $fromWallet = Wallet::where('user_id', $request->from_user_id)->first();
+        // Use authenticated user if from_user_id not provided
+        $fromUserId = $request->from_user_id ?? $request->user()->id;
+        $fromWallet = Wallet::where('user_id', $fromUserId)->first();
 
         if (!$fromWallet) {
             return response()->json(['message' => 'Source wallet not found'], 404);
@@ -138,8 +135,16 @@ class WalletController extends Controller
             return response()->json(['message' => 'Insufficient balance'], 422);
         }
 
-        // Find destination wallet
-        $toWallet = Wallet::where('wallet_address', $request->to_address)->first();
+        // Find destination wallet by address or email
+        if ($request->has('recipient_email')) {
+            $recipientUser = User::where('email', $request->recipient_email)->first();
+            if (!$recipientUser) {
+                return response()->json(['message' => 'Recipient user not found'], 404);
+            }
+            $toWallet = Wallet::where('user_id', $recipientUser->id)->first();
+        } else {
+            $toWallet = Wallet::where('wallet_address', $request->to_address)->first();
+        }
 
         if (!$toWallet) {
             return response()->json(['message' => 'Destination wallet not found'], 404);
@@ -161,7 +166,7 @@ class WalletController extends Controller
             // Create outgoing transaction
             $outgoingTx = WalletTransaction::create([
                 'wallet_id' => $fromWallet->id,
-                'user_id' => $request->from_user_id,
+                'user_id' => $fromUserId,
                 'type' => 'transfer_out',
                 'amount' => $request->amount,
                 'status' => 'completed',

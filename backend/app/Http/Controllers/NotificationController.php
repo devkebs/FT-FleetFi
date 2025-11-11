@@ -36,7 +36,7 @@ class NotificationController extends Controller
         $notifications = $query->paginate($perPage);
 
         return response()->json([
-            'notifications' => $notifications->items(),
+            'data' => $notifications->items(),
             'total' => $notifications->total(),
             'unread_count' => $this->notificationService->getUnreadCount($user),
             'current_page' => $notifications->currentPage(),
@@ -52,7 +52,7 @@ class NotificationController extends Controller
         $user = Auth::user();
         
         return response()->json([
-            'unread_count' => $this->notificationService->getUnreadCount($user),
+            'count' => $this->notificationService->getUnreadCount($user),
         ]);
     }
 

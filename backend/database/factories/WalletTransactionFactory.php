@@ -12,19 +12,21 @@ class WalletTransactionFactory extends Factory
 
     public function definition(): array
     {
+        $wallet = Wallet::factory()->create();
+        
         return [
-            'wallet_id' => Wallet::factory(),
+            'wallet_id' => $wallet->id,
+            'user_id' => $wallet->user_id,
             'type' => $this->faker->randomElement([
                 'deposit',
                 'withdrawal',
                 'transfer_in',
                 'transfer_out',
-                'investment',
-                'payout',
+                'token_purchase',
+                'payout_received',
             ]),
             'amount' => $this->faker->numberBetween(1000, 500000),
             'description' => $this->faker->sentence(6),
-            'reference' => strtoupper($this->faker->bothify('REF-########')),
             'status' => $this->faker->randomElement(['pending', 'completed', 'failed']),
             'tx_hash' => $this->faker->optional()->sha256,
             'metadata' => null,

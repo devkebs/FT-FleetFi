@@ -32,10 +32,13 @@ class WalletTest extends TestCase
 
         $response->assertStatus(201)
             ->assertJsonStructure([
-                'id',
-                'user_id',
-                'balance',
-                'currency',
+                'message',
+                'wallet' => [
+                    'id',
+                    'user_id',
+                    'balance',
+                    'currency',
+                ],
             ]);
 
         $this->assertDatabaseHas('wallets', [

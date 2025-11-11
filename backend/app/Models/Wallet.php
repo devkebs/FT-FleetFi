@@ -14,9 +14,9 @@ class Wallet extends Model
         'wallet_address',
         'trovotech_wallet_id',
         'balance',
+        'currency',
         'status',
         'verified_at',
-        'trustee_ref',
     ];
 
     protected $casts = [
