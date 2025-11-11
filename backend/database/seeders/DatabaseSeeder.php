@@ -14,11 +14,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run()
     {
+        $this->command->info('🌱 Starting FleetFi Database Seeding...');
+
         $this->call([
-            AdminUserSeeder::class,
-            DemoDataSeeder::class,
+            UserSeeder::class,
         ]);
-        //     'email' => 'test@example.com',
-        // ]);
+
+        $this->command->info('✅ FleetFi Database Seeding Complete!');
     }
 }

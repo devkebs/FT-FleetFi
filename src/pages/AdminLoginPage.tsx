@@ -9,7 +9,7 @@ interface AdminLoginPageProps {
 
 export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onAuthenticated, navigate }) => {
   const [email, setEmail] = useState('admin@fleetfi.com');
-  const [password, setPassword] = useState('Fleet@123');
+  const [password, setPassword] = useState('admin123');
   const [loading, setLoading] = useState(false);
 
   const emitToast = (type: string, title: string, message: string) => {
@@ -56,7 +56,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onAuthenticated,
                   <input type="password" className="form-control" value={password} onChange={e=>setPassword(e.target.value)} required />
                 </div>
                 <div className="alert alert-info small">
-                  <i className="bi bi-info-circle me-1"/>Default credentials (seeded): <code>admin@fleetfi.com</code> / <code>Fleet@123</code>
+                  <i className="bi bi-info-circle me-1"/>Default credentials: <code>admin@fleetfi.com</code> / <code>admin123</code>
                 </div>
               </div>
               <div className="card-footer d-flex justify-content-between">

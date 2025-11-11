@@ -112,7 +112,7 @@ if ($token) {
         $response = Invoke-RestMethod -Uri "$baseUrl/analytics/session/start" -Method POST -Body $analyticsData -Headers $headers
         Write-Host "✓ Analytics session started" -ForegroundColor Green
         Write-Host "  Session ID: $sessionId" -ForegroundColor Gray
-        
+
         # Test event tracking
         $eventData = @{
             session_id = $sessionId
@@ -125,7 +125,7 @@ if ($token) {
 
         $eventResponse = Invoke-RestMethod -Uri "$baseUrl/analytics/event" -Method POST -Body $eventData -Headers $headers
         Write-Host "✓ Analytics event tracked" -ForegroundColor Green
-        
+
     } catch {
         Write-Host "✗ Analytics tracking failed" -ForegroundColor Red
         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red

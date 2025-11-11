@@ -7,7 +7,7 @@ import AboutPage from './pages/AboutPage';
 import { InvestorDashboard } from './pages/InvestorDashboard';
 import { OperatorDashboard } from './pages/OperatorDashboard';
 import { DriverDashboard } from './pages/DriverDashboard';
-import { AdminDashboard } from './pages/AdminDashboard';
+import AdminDashboardPage from './pages/AdminDashboardPage';
 import { AdminLoginPage } from './pages/AdminLoginPage';
 import { ESGImpactPage } from './pages/ESGImpactPage';
 import { SLXMarketplace } from './pages/SLXMarketplace';
@@ -250,7 +250,7 @@ const App: React.FC = () => {
           setCurrentPage(Page.AdminDashboard); 
         }} navigate={handleNavigate} />;
       case Page.AdminDashboard:
-        return <AdminDashboard />;
+        return <AdminDashboardPage />;
       case Page.Riders:
         return <RidersPage />;
       case Page.ESGImpact:

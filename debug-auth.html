@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FleetFi Auth Debug</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .info { margin: 10px 0; padding: 10px; background: #f0f0f0; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        button { margin: 5px; padding: 10px 20px; cursor: pointer; }
+        pre { background: #000; color: #0f0; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>FleetFi Authentication Debug Tool</h1>
+    
+    <div class="info">
+        <h3>LocalStorage Contents:</h3>
+        <div id="storage-contents"></div>
+    </div>
+
+    <div class="info">
+        <h3>Test Login</h3>
+        <input type="email" id="email" value="admin@fleetfi.com" style="width: 300px; padding: 5px;">
+        <input type="password" id="password" value="admin123" style="width: 300px; padding: 5px; margin-left: 10px;">
+        <button onclick="testLogin()">Login</button>
+    </div>
+
+    <div class="info">
+        <h3>Test API Call</h3>
+        <button onclick="testUsersAPI()">Test /admin/users</button>
+        <button onclick="testKYCAPI()">Test /admin/dashboard/kyc-management</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        const API_URL = 'http://127.0.0.1:8000/api';
+
+        function displayStorage() {
+            const div = document.getElementById('storage-contents');
+            const items = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                items.push(`<strong>${key}:</strong> ${value.substring(0, 100)}${value.length > 100 ? '...' : ''}`);
+            }
+            div.innerHTML = items.length ? items.join('<br>') : '<em>No items in localStorage</em>';
+        }
+
+        function showResult(title, data, isError = false) {
+            const div = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'info ' + (isError ? 'error' : 'success');
+            resultDiv.innerHTML = `<h3>${title}</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            div.insertBefore(resultDiv, div.firstChild);
+        }
+
+        async function testLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.token) {
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('user_data', JSON.stringify(data.user));
+                    showResult('Login Successful', data);
+                    displayStorage();
+                } else {
+                    showResult('Login Failed', data, true);
+                }
+            } catch (error) {
+                showResult('Login Error', { error: error.message }, true);
+            }
+        }
+
+        async function testUsersAPI() {
+            const token = localStorage.getItem('auth_token');
+            
+            if (!token) {
+                showResult('API Test Failed', { error: 'No token found. Please login first.' }, true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/admin/users`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                showResult('Users API Response', { 
+                    status: response.status, 
+                    success: data.success,
+                    users_count: data.users?.length || 0,
+                    first_user: data.users?.[0] || null
+                });
+            } catch (error) {
+                showResult('API Error', { error: error.message }, true);
+            }
+        }
+
+        async function testKYCAPI() {
+            const token = localStorage.getItem('auth_token');
+            
+            if (!token) {
+                showResult('API Test Failed', { error: 'No token found. Please login first.' }, true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/admin/dashboard/kyc-management`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                showResult('KYC API Response', { 
+                    status: response.status, 
+                    success: data.success,
+                    submissions_count: data.submissions?.length || 0,
+                    stats: data.stats
+                });
+            } catch (error) {
+                showResult('API Error', { error: error.message }, true);
+            }
+        }
+
+        // Display storage on load
+        displayStorage();
+
+        // Refresh storage display every 2 seconds
+        setInterval(displayStorage, 2000);
+    </script>
+</body>
+</html>

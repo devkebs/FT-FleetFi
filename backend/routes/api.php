@@ -37,6 +37,9 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\KycWebhookController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\PortfolioController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\AdminDashboardController;
 
 // Public routes
 Route::get('/ping', [HealthController::class, 'ping']);
@@ -55,6 +58,10 @@ Route::post('/telemetry', [TelemetryController::class, 'store']);
 // Public KYC webhooks (provider callbacks) - secured by signature
 Route::post('/kyc/webhook/identitypass', [KycWebhookController::class, 'handleIdentityPass']);
 
+// Payment gateway webhooks
+Route::post('/webhooks/paystack', [PaymentController::class, 'paystackWebhook']);
+Route::post('/webhooks/flutterwave', [PaymentController::class, 'flutterwaveWebhook']);
+
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -69,6 +76,27 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Live telemetry endpoint for real-time dashboard
     Route::get('/telemetry/live', [TelemetryController::class, 'getLiveTelemetry'])->middleware('role:operator,admin');
+    Route::get('/telemetry/alerts', [TelemetryController::class, 'getAlerts'])->middleware('role:operator,admin');
+    Route::get('/telemetry/{assetId}/statistics', [TelemetryController::class, 'getStatistics'])->middleware('role:operator,admin');
+
+    // Portfolio endpoints for investors
+    Route::prefix('portfolio')->middleware('role:investor,operator')->group(function () {
+        Route::get('/', [PortfolioController::class, 'index']);
+        Route::get('/performance', [PortfolioController::class, 'performance']);
+        Route::get('/revenue-breakdown', [PortfolioController::class, 'revenueBreakdown']);
+        Route::get('/export', [PortfolioController::class, 'exportCsv']);
+        Route::get('/{id}', [PortfolioController::class, 'show']);
+    });
+
+    // Investment endpoints (existing /investments route)
+    Route::get('/investments', [PortfolioController::class, 'index'])->middleware('role:investor,operator');
+    Route::get('/investments/{id}', [PortfolioController::class, 'show'])->middleware('role:investor,operator');
+
+    // Payment endpoints
+    Route::prefix('payments')->group(function () {
+        Route::post('/initialize', [PaymentController::class, 'initializePayment']);
+        Route::post('/verify', [PaymentController::class, 'verifyPayment']);
+    });
 
     // Operations & revenue endpoints (simulation layer) - read-only for most roles
     Route::get('/rides', [OperationsController::class, 'rides'])->middleware('role:operator,admin');
@@ -130,8 +158,39 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Admin-only routes
     Route::middleware('role:admin')->prefix('admin')->group(function () {
+        // Debug endpoint
+        Route::get('/debug', function () {
+            return response()->json([
+                'success' => true,
+                'message' => 'Admin routes are accessible',
+                'user' => auth()->user(),
+                'users_count' => \App\Models\User::count(),
+                'transactions_count' => \App\Models\WalletTransaction::count(),
+            ]);
+        });
+        
+        // Admin dashboard analytics endpoints
+        Route::get('/dashboard/overview', [AdminDashboardController::class, 'overview']);
+        Route::get('/dashboard/realtime', [AdminDashboardController::class, 'realtime']);
+        Route::get('/dashboard/user-analytics', [AdminDashboardController::class, 'userAnalytics']);
+        Route::get('/dashboard/revenue-analytics', [AdminDashboardController::class, 'revenueAnalytics']);
+        Route::get('/dashboard/fleet-analytics', [AdminDashboardController::class, 'fleetAnalytics']);
+        Route::get('/dashboard/system-health', [AdminDashboardController::class, 'systemHealth']);
+        Route::get('/dashboard/kyc-management', [AdminDashboardController::class, 'kycManagement']);
+        Route::get('/dashboard/transaction-monitoring', [AdminDashboardController::class, 'transactionMonitoring']);
+        Route::get('/dashboard/audit-logs', [AdminDashboardController::class, 'auditLogs']);
+
+        // New admin dashboard action endpoints
+        Route::post('/kyc/approve/{userId}', [AdminDashboardController::class, 'approveKyc']);
+        Route::post('/kyc/reject/{userId}', [AdminDashboardController::class, 'rejectKyc']);
+        Route::get('/transactions', [AdminDashboardController::class, 'getTransactions']);
+        Route::get('/system-health', [AdminDashboardController::class, 'getSystemHealth']);
+        Route::post('/api-config', [AdminDashboardController::class, 'updateApiConfig']);
+        Route::get('/users', [AdminDashboardController::class, 'getUsers']);
+
+        // Existing admin routes
         Route::get('/overview', [AdminController::class, 'overview']);
-        Route::get('/users', [AdminController::class, 'users']);
+        // Route::get('/users', [AdminController::class, 'users']); // REPLACED with AdminDashboardController@getUsers
         Route::post('/users', [AdminController::class, 'createUser']);
         Route::patch('/users/{userId}/role', [AdminController::class, 'updateUserRole']);
         Route::patch('/users/{userId}/toggle-status', [AdminController::class, 'toggleUserStatus']);
@@ -175,7 +234,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/event', [AnalyticsController::class, 'trackEvent']);
         Route::post('/feedback', [AnalyticsController::class, 'submitFeedback']);
         Route::post('/sentiment', [AnalyticsController::class, 'trackSentiment']);
-        
+
         // Admin-only analytics dashboard
         Route::get('/dashboard', [AnalyticsController::class, 'getDashboard'])->middleware('role:admin');
         Route::get('/user/{userId}/insights', [AnalyticsController::class, 'getUserInsights'])->middleware('role:admin');

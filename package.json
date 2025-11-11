@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "vite preview --port $PORT --host 0.0.0.0",
+    "start": "vite preview --port $PORT --host 0.0.0.0",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage"
@@ -15,8 +16,11 @@
     "@hookform/resolvers": "^5.2.2",
     "@types/react": "^18.2.79",
     "@types/react-dom": "^18.2.25",
+    "bootstrap": "^5.3.8",
     "leaflet": "^1.9.4",
+    "lucide-react": "^0.553.0",
     "react": "^18.2.0",
+    "react-bootstrap": "^2.10.10",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.66.0",
     "react-hot-toast": "^2.6.0",
