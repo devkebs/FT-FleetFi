@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import InvestmentWizard from '../components/InvestmentWizard';
+import { InvestmentWizard } from '../components/InvestmentWizard';
 
 const mockAsset = {
   id: 'VEH001',

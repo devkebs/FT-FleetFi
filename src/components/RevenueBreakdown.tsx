@@ -1,4 +1,3 @@
-import React from 'react';
 import type { RevenueBreakdown as RevenueBreakdownType } from '../services/api';
 
 interface RevenueBreakdownProps {

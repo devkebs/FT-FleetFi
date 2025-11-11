@@ -1,7 +1,5 @@
 import React from 'react';
 import {
-  LineChart,
-  Line,
   AreaChart,
   Area,
   BarChart,
@@ -13,7 +11,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer
 } from 'recharts';
 
@@ -88,7 +85,7 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({ analyticsData 
                     outerRadius={100}
                     label={(entry: any) => `${entry.event_category}: ${entry.count}`}
                   >
-                    {eventCategoryData.map((entry: any, index: number) => (
+                    {eventCategoryData.map((_entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -146,7 +143,7 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({ analyticsData 
                     }}
                   />
                   <Bar dataKey="count" fill={CHART_COLORS.primary}>
-                    {topEventsData.map((entry: any, index: number) => (
+                    {topEventsData.map((_entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Bar>
@@ -257,7 +254,7 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({ analyticsData 
                   }}
                 />
                 <Bar dataKey="value" fill={CHART_COLORS.primary}>
-                  {funnelData.map((entry: any, index: number) => (
+                  {funnelData.map((_entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Bar>

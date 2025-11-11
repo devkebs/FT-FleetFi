@@ -1,38 +1,45 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import NotificationCenter from '../components/NotificationCenter';
+import { NotificationCenter } from '../components/NotificationCenter';
 import * as notificationService from '../services/notifications';
+import type { Notification } from '../services/notifications';
 
 // Mock the notification service
 vi.mock('../services/notifications');
 
-const mockNotifications = [
+const mockNotifications: Notification[] = [
   {
     id: 1,
+    user_id: 1,
     type: 'kyc_approved',
     title: 'KYC Approved',
     message: 'Your KYC verification has been approved',
     is_read: false,
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   },
   {
     id: 2,
+    user_id: 1,
     type: 'investment_completed',
     title: 'Investment Successful',
     message: 'Your investment of ₦50,000 was successful',
     is_read: true,
     created_at: new Date(Date.now() - 3600000).toISOString(),
+    updated_at: new Date(Date.now() - 3600000).toISOString(),
   },
 ];
 
 describe('NotificationCenter', () => {
   it('renders notification bell icon', () => {
-    vi.mocked(notificationService.getUnreadCount).mockResolvedValue({ count: 0 });
+    vi.mocked(notificationService.getUnreadCount).mockResolvedValue(0);
     vi.mocked(notificationService.getNotifications).mockResolvedValue({
-      data: [],
+      notifications: [],
       total: 0,
       unread_count: 0,
+      current_page: 1,
+      last_page: 1,
     });
 
     render(
@@ -45,11 +52,13 @@ describe('NotificationCenter', () => {
   });
 
   it('displays unread count badge', async () => {
-    vi.mocked(notificationService.getUnreadCount).mockResolvedValue({ count: 3 });
+    vi.mocked(notificationService.getUnreadCount).mockResolvedValue(3);
     vi.mocked(notificationService.getNotifications).mockResolvedValue({
-      data: mockNotifications,
+      notifications: mockNotifications,
       total: 2,
       unread_count: 3,
+      current_page: 1,
+      last_page: 1,
     });
 
     render(
@@ -64,11 +73,13 @@ describe('NotificationCenter', () => {
   });
 
   it('opens dropdown when bell icon is clicked', async () => {
-    vi.mocked(notificationService.getUnreadCount).mockResolvedValue({ count: 1 });
+    vi.mocked(notificationService.getUnreadCount).mockResolvedValue(1);
     vi.mocked(notificationService.getNotifications).mockResolvedValue({
-      data: mockNotifications,
+      notifications: mockNotifications,
       total: 2,
       unread_count: 1,
+      current_page: 1,
+      last_page: 1,
     });
 
     render(
@@ -86,11 +97,13 @@ describe('NotificationCenter', () => {
   });
 
   it('displays notification list', async () => {
-    vi.mocked(notificationService.getUnreadCount).mockResolvedValue({ count: 1 });
+    vi.mocked(notificationService.getUnreadCount).mockResolvedValue(1);
     vi.mocked(notificationService.getNotifications).mockResolvedValue({
-      data: mockNotifications,
+      notifications: mockNotifications,
       total: 2,
       unread_count: 1,
+      current_page: 1,
+      last_page: 1,
     });
 
     render(
@@ -108,13 +121,15 @@ describe('NotificationCenter', () => {
   });
 
   it('marks notification as read when clicked', async () => {
-    vi.mocked(notificationService.getUnreadCount).mockResolvedValue({ count: 1 });
+    vi.mocked(notificationService.getUnreadCount).mockResolvedValue(1);
     vi.mocked(notificationService.getNotifications).mockResolvedValue({
-      data: mockNotifications,
+      notifications: mockNotifications,
       total: 2,
       unread_count: 1,
+      current_page: 1,
+      last_page: 1,
     });
-    vi.mocked(notificationService.markAsRead).mockResolvedValue({ success: true });
+    vi.mocked(notificationService.markAsRead).mockResolvedValue(mockNotifications[0]);
 
     render(
       <BrowserRouter>
@@ -139,11 +154,13 @@ describe('NotificationCenter', () => {
   });
 
   it('shows empty state when no notifications', async () => {
-    vi.mocked(notificationService.getUnreadCount).mockResolvedValue({ count: 0 });
+    vi.mocked(notificationService.getUnreadCount).mockResolvedValue(0);
     vi.mocked(notificationService.getNotifications).mockResolvedValue({
-      data: [],
+      notifications: [],
       total: 0,
       unread_count: 0,
+      current_page: 1,
+      last_page: 1,
     });
 
     render(

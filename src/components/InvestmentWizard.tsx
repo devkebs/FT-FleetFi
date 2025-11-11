@@ -243,7 +243,7 @@ export const InvestmentWizard: React.FC<InvestmentWizardProps> = ({
                       const value = e.target.value === '' ? 0 : parseInt(e.target.value);
                       setInvestAmount(Math.max(0, value));
                     }}
-                    onBlur={e => {
+                    onBlur={() => {
                       // Ensure minimum on blur
                       if (investAmount < 100) {
                         setInvestAmount(100);

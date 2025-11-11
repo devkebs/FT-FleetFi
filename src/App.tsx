@@ -20,7 +20,7 @@ import { KycModal } from './components/KycModal';
 import { FeedbackModal } from './components/FeedbackModal';
 import { SentimentWidget } from './components/SentimentWidget';
 import { getKycStatus } from './services/kyc';
-import analytics, { trackEvent, trackMilestone, trackConversion } from './services/analytics';
+import { trackEvent, trackMilestone, trackConversion } from './services/analytics';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>(Page.Landing);
