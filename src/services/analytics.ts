@@ -138,7 +138,7 @@ class AnalyticsService {
     metadata?: Record<string, any>;
   }) {
     try {
-      const response = await apiClient.post('/analytics/feedback', {
+      const response = await apiClient.post<any>('/analytics/feedback', {
         session_id: this.sessionId,
         feedback_type: data.feedbackType,
         trigger_point: data.triggerPoint,
@@ -258,8 +258,9 @@ class AnalyticsService {
         interactions: interactionCount,
       };
       
+      const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000';
       navigator.sendBeacon(
-        `${apiClient.defaults.baseURL}/analytics/session/end`,
+        `${API_BASE_URL}/api/analytics/session/end`,
         JSON.stringify(data)
       );
     });

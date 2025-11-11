@@ -1,5 +1,5 @@
 import React from 'react';
-import { Page } from '../types';
+import { Page } from '../src/types';
 
 interface LandingPageProps {
   onNavigate: (page: Page) => void;

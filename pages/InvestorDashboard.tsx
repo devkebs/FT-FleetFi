@@ -1,5 +1,5 @@
 import React from 'react';
-import { Asset, Token, Payout } from '../types';
+import { Asset, Token, Payout } from '../src/types';
 
 interface InvestorDashboardProps {
   assets: Asset[];

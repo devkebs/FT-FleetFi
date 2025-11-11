@@ -1,4 +1,4 @@
-import { Asset, Token, Payout, SLXListing } from '../types';
+import { Asset, Token, Payout, SLXListing } from '../src/types';
 
 export const initialAssets: Asset[] = [
   {

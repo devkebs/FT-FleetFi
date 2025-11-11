@@ -486,7 +486,7 @@ export const TelemetryWidget: React.FC = () => {
             {viewMode === 'map' && (
               <div style={{ height: '600px', borderRadius: '8px', overflow: 'hidden' }}>
                 <MapContainer
-                  center={[6.5244, 3.3792]}
+                  center={[6.5244, 3.3792] as [number, number]}
                   zoom={12}
                   style={{ height: '100%', width: '100%' }}
                 >

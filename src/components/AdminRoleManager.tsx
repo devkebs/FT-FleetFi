@@ -47,7 +47,7 @@ export const AdminRoleManager: React.FC = () => {
       const endpoint = selectedRole === 'all' 
         ? '/admin/capabilities' 
         : `/admin/capabilities?role=${selectedRole}`;
-      const data = await apiClient.get(endpoint);
+      const data = await apiClient.get<any>(endpoint);
       setCapabilities(data.capabilities || []);
     } catch (error) {
       console.error('Failed to load capabilities:', error);
@@ -58,7 +58,7 @@ export const AdminRoleManager: React.FC = () => {
 
   const loadRoleStats = async () => {
     try {
-      const data = await apiClient.get('/admin/role-stats');
+      const data = await apiClient.get<any>('/admin/role-stats');
       setRoleStats(data.stats || []);
     } catch (error) {
       console.error('Failed to load role stats:', error);
@@ -96,7 +96,7 @@ export const AdminRoleManager: React.FC = () => {
 
   const addCapability = async () => {
     try {
-      const data = await apiClient.post('/admin/capabilities', newCapability);
+      const data = await apiClient.post<any>('/admin/capabilities', newCapability);
       setCapabilities([...capabilities, data.capability]);
       setShowAddModal(false);
       setNewCapability({
