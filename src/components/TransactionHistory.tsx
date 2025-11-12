@@ -74,7 +74,9 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = () => {
   };
 
   const getFilteredTransactions = () => {
-    let filtered = transactions;
+    // Ensure transactions is always an array
+    const txArray = Array.isArray(transactions) ? transactions : [];
+    let filtered = [...txArray]; // Create a copy to avoid mutating state
     
     if (filter !== 'all') {
       filtered = filtered.filter(tx => tx.type.toLowerCase() === filter.toLowerCase());

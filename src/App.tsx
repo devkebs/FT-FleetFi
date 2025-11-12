@@ -200,10 +200,10 @@ const App: React.FC = () => {
           }
         }
       } catch (err: any) {
-        console.warn('Auth check failed:', err);
+        // Silently handle auth failures - don't log as errors
         setIsAuthenticated(false);
         // If 401, redirect to landing page if on protected route
-        if (err?.status === 401) {
+        if (err?.status === 401 || err?.message === 'Session expired') {
           const protectedPages = [
             Page.InvestorDashboard, 
             Page.OperatorDashboard, 
@@ -213,8 +213,10 @@ const App: React.FC = () => {
             Page.Riders
           ];
           if (protectedPages.includes(currentPage)) {
-            emitToast('warning', 'Session Expired', 'Please login again to continue.');
+            emitToast('info', 'Please Login', 'Please login to access this page.');
             setCurrentPage(Page.Landing);
+            // Small delay before showing auth modal
+            setTimeout(() => setShowAuth(true), 500);
           }
         }
       }

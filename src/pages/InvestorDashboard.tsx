@@ -59,8 +59,12 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
     try {
       const w = await getWallet();
       setWallet(w);
-    } catch (e) {
-      console.log('No wallet yet:', e);
+    } catch (e: any) {
+      // Don't log "no wallet" as error - it's expected for new users
+      if (e?.status === 401) {
+        throw e; // Re-throw auth errors to be caught by parent
+      }
+      // Otherwise silently ignore - user just doesn't have wallet yet
     }
   };
 
@@ -68,8 +72,11 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
     try {
       const t = await getMyTokens();
       setMyTokens(t);
-    } catch (e) {
-      console.warn('Failed to load tokens:', e);
+    } catch (e: any) {
+      if (e?.status === 401) {
+        throw e; // Re-throw auth errors
+      }
+      // Silently ignore other errors - user might not have tokens
     }
   };
 
@@ -78,8 +85,11 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
       setLoadingRevenue(true);
       const data = await fetchRevenueSummary();
       setRevenueData(data);
-    } catch (e) {
-      console.warn('Failed to load revenue summary:', e);
+    } catch (e: any) {
+      if (e?.status === 401) {
+        throw e; // Re-throw auth errors
+      }
+      // Silently ignore other errors
     } finally {
       setLoadingRevenue(false);
     }
