@@ -2,11 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { Payout, Token } from '../types';
 
 interface PayoutHistoryProps {
-  payouts: Payout[];
-  tokens: Token[];
+  payouts?: Payout[];
+  tokens?: Token[];
 }
 
-export const PayoutHistory: React.FC<PayoutHistoryProps> = ({ payouts, tokens }) => {
+export const PayoutHistory: React.FC<PayoutHistoryProps> = ({ payouts = [], tokens = [] }) => {
   const [filter, setFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -14,6 +14,7 @@ export const PayoutHistory: React.FC<PayoutHistoryProps> = ({ payouts, tokens })
 
   // Enrich payouts with token data
   const enrichedPayouts = useMemo(() => {
+    if (!payouts || !tokens) return [];
     return payouts.map(payout => {
       const token = tokens.find(t => t.id === payout.tokenId);
       return {
