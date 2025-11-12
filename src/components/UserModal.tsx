@@ -85,9 +85,19 @@ export const UserModal: React.FC<UserModalProps> = ({ userId, mode, onClose, onS
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
       });
-      if (!response.ok) throw new Error('API Error');
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const error = await response.json();
+          throw error;
+        } else {
+          const text = await response.text();
+          throw new Error(`Server error: ${response.status}`);
+        }
+      }
       return response.json();
     },
     post: async (url: string, body?: any) => {
@@ -97,12 +107,19 @@ export const UserModal: React.FC<UserModalProps> = ({ userId, mode, onClose, onS
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(body),
       });
       if (!response.ok) {
-        const error = await response.json();
-        throw error;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const error = await response.json();
+          throw error;
+        } else {
+          const text = await response.text();
+          throw new Error(`Server error: ${response.status}`);
+        }
       }
       return response.json();
     },
@@ -113,12 +130,19 @@ export const UserModal: React.FC<UserModalProps> = ({ userId, mode, onClose, onS
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(body),
       });
       if (!response.ok) {
-        const error = await response.json();
-        throw error;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const error = await response.json();
+          throw error;
+        } else {
+          const text = await response.text();
+          throw new Error(`Server error: ${response.status} - ${text.substring(0, 100)}`);
+        }
       }
       return response.json();
     },

@@ -57,9 +57,18 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
       });
-      if (!response.ok) throw new Error('API Error');
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const error = await response.json();
+          throw error;
+        } else {
+          throw new Error(`Server error: ${response.status}`);
+        }
+      }
       return response.json();
     },
     post: async (url: string, body?: any) => {
@@ -69,10 +78,19 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(body),
       });
-      if (!response.ok) throw new Error('API Error');
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const error = await response.json();
+          throw error;
+        } else {
+          throw new Error(`Server error: ${response.status}`);
+        }
+      }
       return response.json();
     },
     delete: async (url: string) => {
@@ -82,9 +100,18 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
       });
-      if (!response.ok) throw new Error('API Error');
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const error = await response.json();
+          throw error;
+        } else {
+          throw new Error(`Server error: ${response.status}`);
+        }
+      }
       return response.json();
     },
   };
