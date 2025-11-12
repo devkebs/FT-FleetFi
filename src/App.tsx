@@ -199,8 +199,24 @@ const App: React.FC = () => {
             }
           }
         }
-      } catch {
+      } catch (err: any) {
+        console.warn('Auth check failed:', err);
         setIsAuthenticated(false);
+        // If 401, redirect to landing page if on protected route
+        if (err?.status === 401) {
+          const protectedPages = [
+            Page.InvestorDashboard, 
+            Page.OperatorDashboard, 
+            Page.DriverDashboard, 
+            Page.AdminDashboard,
+            Page.SLXMarketplace,
+            Page.Riders
+          ];
+          if (protectedPages.includes(currentPage)) {
+            emitToast('warning', 'Session Expired', 'Please login again to continue.');
+            setCurrentPage(Page.Landing);
+          }
+        }
       }
     })();
     if (!(currentPage === Page.OperatorDashboard || currentPage === Page.InvestorDashboard)) return;

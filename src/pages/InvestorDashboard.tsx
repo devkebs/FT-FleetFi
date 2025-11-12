@@ -33,7 +33,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
   const [loadingRevenue, setLoadingRevenue] = useState(false);
   const [loadingWallet, setLoadingWallet] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [renderError, setRenderError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState(false);
   const [showInvestModal, setShowInvestModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
 
@@ -42,8 +42,12 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
     const initDashboard = async () => {
       try {
         await Promise.all([loadWallet(), loadMyTokens(), loadRevenue()]);
-      } catch (e) {
+      } catch (e: any) {
         console.error('Dashboard init error:', e);
+        // Check if it's an auth error (401)
+        if (e?.status === 401) {
+          setAuthError(true);
+        }
       } finally {
         setInitialLoading(false);
       }
@@ -192,6 +196,30 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
 
   const investmentDisabled = kycStatus !== 'verified';
 
+  // Handle authentication error - redirect to login
+  if (authError) {
+    return (
+      <div className="container-fluid py-4" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
+        <div className="alert alert-warning border-0 shadow-sm">
+          <h5><i className="bi bi-exclamation-triangle me-2"></i>Session Expired</h5>
+          <p className="mb-3">Your session has expired. Please login again to continue.</p>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => {
+              // Clear any stored data
+              localStorage.removeItem('auth_token');
+              sessionStorage.removeItem('auth_token');
+              // Reload to trigger app auth check
+              window.location.href = '/';
+            }}
+          >
+            Return to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (initialLoading) {
     return (
       <div className="container-fluid py-4" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
@@ -205,22 +233,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
     );
   }
 
-  if (renderError) {
-    return (
-      <div className="container-fluid py-4" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
-        <div className="alert alert-danger">
-          <h5><i className="bi bi-exclamation-triangle me-2"></i>Dashboard Error</h5>
-          <p>{renderError}</p>
-          <button className="btn btn-sm btn-primary" onClick={() => window.location.reload()}>
-            Reload Page
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  try {
-    return (
+  return (
       <div className="container-fluid py-4" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
         <div className="d-flex align-items-center justify-content-between mb-4">
           <div>
@@ -493,20 +506,5 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
         />
       )}
     </div>
-    );
-  } catch (err: any) {
-    console.error('InvestorDashboard render error:', err);
-    setRenderError(err.message || 'An unexpected error occurred');
-    return (
-      <div className="container-fluid py-4" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
-        <div className="alert alert-danger">
-          <h5><i className="bi bi-exclamation-triangle me-2"></i>Dashboard Error</h5>
-          <p>{err.message || 'An error occurred while rendering the dashboard'}</p>
-          <button className="btn btn-sm btn-primary" onClick={() => window.location.reload()}>
-            Reload Page
-          </button>
-        </div>
-      </div>
-    );
-  }
+  );
 };
