@@ -41,14 +41,25 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
   useEffect(() => {
     const initDashboard = async () => {
       try {
+        console.log('Initializing investor dashboard...');
+        // Add a timeout to prevent infinite loading
+        const timeout = setTimeout(() => {
+          console.warn('Dashboard initialization timeout - forcing completion');
+          setInitialLoading(false);
+        }, 10000); // 10 second timeout
+        
         await Promise.all([loadWallet(), loadMyTokens(), loadRevenue()]);
+        clearTimeout(timeout);
+        console.log('Dashboard initialization complete');
       } catch (e: any) {
         console.error('Dashboard init error:', e);
         // Check if it's an auth error (401)
         if (e?.status === 401) {
           setAuthError(true);
         }
+        // Always continue even if there are errors - show empty states
       } finally {
+        console.log('Setting initialLoading to false');
         setInitialLoading(false);
       }
     };
