@@ -360,24 +360,20 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
         </div>
       )}
 
-      {/* Portfolio Performance */}
-      {wallet && myTokens.length > 0 && (
-        <div className="mb-4">
-          <PortfolioPerformance />
-        </div>
-      )}
+      {/* Portfolio Performance - Show even without tokens */}
+      <div className="mb-4">
+        <PortfolioPerformance />
+      </div>
 
       {/* Revenue Allocation Breakdown */}
       <div className="mb-4">
         <RevenueBreakdown data={revenueData} loading={loadingRevenue} />
       </div>
 
-      {/* Transaction History */}
-      {wallet && (
-        <div className="mb-4">
-          <TransactionHistory walletAddress={wallet.walletAddress} />
-        </div>
-      )}
+      {/* Transaction History - Show even without wallet */}
+      <div className="mb-4">
+        <TransactionHistory walletAddress={wallet?.walletAddress || ''} />
+      </div>
 
       {/* Available Assets for Investment */}
       {availableAssets.length > 0 && (

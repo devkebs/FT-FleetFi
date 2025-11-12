@@ -31,9 +31,13 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = () => {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
+      setError(null);
       const token = getStoredToken();
       if (!token) {
-        throw new Error('Not authenticated');
+        // No token - show empty state
+        setTransactions([]);
+        setLoading(false);
+        return;
       }
 
       // Get current user ID from token or auth context
@@ -44,8 +48,17 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = () => {
         },
       });
 
+      if (userResponse.status === 401) {
+        // Auth error - show empty state
+        setTransactions([]);
+        setError('Please login to view transactions');
+        return;
+      }
+
       if (!userResponse.ok) {
-        throw new Error('Failed to get user info');
+        setTransactions([]);
+        setError('Unable to load transactions');
+        return;
       }
 
       const user = await userResponse.json();
@@ -57,14 +70,25 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = () => {
         },
       });
 
+      if (response.status === 401) {
+        setTransactions([]);
+        setError('Session expired');
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error('Failed to fetch transactions');
+        setTransactions([]);
+        setError('No transactions found');
+        return;
       }
 
       const data = await response.json();
       setTransactions(data.transactions || data || []);
+      setError(null);
     } catch (err) {
-      setError((err as Error).message);
+      // Handle all errors gracefully
+      setTransactions([]);
+      setError('Unable to load transactions');
       console.error('Transaction fetch error:', err);
       // Set empty array on error so component still renders
       setTransactions([]);
