@@ -90,15 +90,37 @@ export const PortfolioPerformance: React.FC = () => {
 
   if (error) {
     return (
-      <div className="alert alert-warning border-0 shadow-sm mb-0">
-        <i className="bi bi-exclamation-triangle me-2"></i>
-        <small>Unable to load performance data. {error}</small>
+      <div className="card shadow-sm border-0">
+        <div className="card-header bg-white border-bottom">
+          <h5 className="mb-0">
+            <i className="bi bi-graph-up-arrow me-2 text-primary"></i>
+            Portfolio Performance
+          </h5>
+        </div>
+        <div className="card-body">
+          <div className="alert alert-warning border-0 mb-0">
+            <i className="bi bi-exclamation-triangle me-2"></i>
+            <small>{error}</small>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!performance) {
-    return null;
+    return (
+      <div className="card shadow-sm border-0">
+        <div className="card-header bg-white border-bottom">
+          <h5 className="mb-0">
+            <i className="bi bi-graph-up-arrow me-2 text-primary"></i>
+            Portfolio Performance
+          </h5>
+        </div>
+        <div className="card-body text-center py-4">
+          <p className="text-muted mb-0">No performance data available yet</p>
+        </div>
+      </div>
+    );
   }
 
   // Add default values to prevent undefined errors
