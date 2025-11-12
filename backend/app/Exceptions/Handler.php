@@ -58,8 +58,11 @@ class Handler extends ExceptionHandler
      */
     protected function unauthenticated($request, AuthenticationException $exception)
     {
-        return $request->expectsJson()
-            ? response()->json(['message' => 'Unauthenticated.'], 401)
-            : redirect()->guest(route('login'));
+        // Always return JSON for API requests (no web routes in this app)
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthenticated. Please login first.',
+            'error' => 'authentication_required'
+        ], 401);
     }
 }

@@ -79,14 +79,14 @@ class AdminDashboardController extends Controller
      */
     private function getRevenueStats($period)
     {
-        $totalRevenue = Revenue::sum('total_amount');
+        $totalRevenue = Revenue::sum('amount');
         $periodRevenue = Revenue::where('created_at', '>=', now()->subDays($period))
-            ->sum('total_amount');
+            ->sum('amount');
 
         $totalPayouts = Payout::where('status', 'completed')->sum('amount');
         $pendingPayouts = Payout::where('status', 'pending')->sum('amount');
 
-        $revenueBySource = Revenue::select('source', DB::raw('sum(total_amount) as total'))
+        $revenueBySource = Revenue::select('source', DB::raw('sum(amount) as total'))
             ->where('created_at', '>=', now()->subDays($period))
             ->groupBy('source')
             ->get()
@@ -94,7 +94,7 @@ class AdminDashboardController extends Controller
 
         $dailyRevenue = Revenue::select(
                 DB::raw('DATE(created_at) as date'),
-                DB::raw('sum(total_amount) as total')
+                DB::raw('sum(amount) as total')
             )
             ->where('created_at', '>=', now()->subDays($period))
             ->groupBy('date')
@@ -149,14 +149,14 @@ class AdminDashboardController extends Controller
      */
     private function getInvestmentStats($period)
     {
-        $totalInvestments = Token::sum('amount');
+        $totalInvestments = Token::sum('investment_amount');
         $periodInvestments = Token::where('created_at', '>=', now()->subDays($period))
-            ->sum('amount');
+            ->sum('investment_amount');
 
         $activeInvestors = Token::distinct('user_id')->count('user_id');
-        $totalTokens = Token::sum('token_count');
+        $totalTokens = Token::sum('shares'); // Changed from token_count to shares
 
-        $investmentsByAsset = Token::select('asset_id', DB::raw('sum(amount) as total'))
+        $investmentsByAsset = Token::select('asset_id', DB::raw('sum(investment_amount) as total'))
             ->groupBy('asset_id')
             ->with('asset:id,name')
             ->get()
@@ -324,7 +324,7 @@ class AdminDashboardController extends Controller
 
         $revenueGrowth = Revenue::select(
                 DB::raw('DATE(created_at) as date'),
-                DB::raw('sum(total_amount) as total'),
+                DB::raw('sum(amount) as total'),
                 DB::raw('count(*) as transactions')
             )
             ->where('created_at', '>=', now()->subDays($period))
@@ -332,7 +332,7 @@ class AdminDashboardController extends Controller
             ->orderBy('date', 'asc')
             ->get();
 
-        $revenueByAsset = Revenue::select('asset_id', DB::raw('sum(total_amount) as total'))
+        $revenueByAsset = Revenue::select('asset_id', DB::raw('sum(amount) as total'))
             ->where('created_at', '>=', now()->subDays($period))
             ->groupBy('asset_id')
             ->orderBy('total', 'desc')
@@ -665,7 +665,7 @@ class AdminDashboardController extends Controller
      */
     private function getRevenueTodayLive()
     {
-        return Revenue::whereDate('created_at', today())->sum('total_amount');
+        return Revenue::whereDate('created_at', today())->sum('amount');
     }
 
     /**
@@ -735,7 +735,7 @@ class AdminDashboardController extends Controller
      */
     private function calculateProfitMargin($period)
     {
-        $revenue = Revenue::where('created_at', '>=', now()->subDays($period))->sum('total_amount');
+        $revenue = Revenue::where('created_at', '>=', now()->subDays($period))->sum('amount');
         $payouts = Payout::where('created_at', '>=', now()->subDays($period))
             ->where('status', 'completed')
             ->sum('amount');
