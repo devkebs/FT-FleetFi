@@ -1439,7 +1439,7 @@ const AdminDashboardPage: React.FC = () => {
                 </Card.Header>
                 <Card.Body>
                   <p className="text-muted">
-                    Configure your third-party API integrations for Trovotech wallet services, KYC verification, and OEM telemetry.
+                    Configure your third-party API integrations for Trovotech wallet services, KYC verification, OEM telemetry, and Bantu blockchain for the Dual Revenue Framework.
                   </p>
                   {(!apiConfig.trovotech_api_key || !apiConfig.kyc_api_key || !apiConfig.oem_api_key) && (
                     <Alert variant="warning" className="d-flex align-items-center">
@@ -1447,6 +1447,22 @@ const AdminDashboardPage: React.FC = () => {
                       One or more API keys are not configured. Some features may be limited.
                     </Alert>
                   )}
+                  
+                  {/* Revenue Framework Info Banner */}
+                  <Alert variant="info" className="mb-0">
+                    <div className="d-flex align-items-start">
+                      <DollarSign size={20} className="me-2 mt-1" />
+                      <div>
+                        <strong>Dual Revenue Framework Active</strong>
+                        <p className="mb-1 small">Your system is configured for dual-layer tokenized revenue:</p>
+                        <ul className="mb-0 small">
+                          <li><strong>Vehicle Layer (EKT):</strong> ₦11,000 gross → ₦7,500 net split via smart contract</li>
+                          <li><strong>Swap Station Layer (SST):</strong> ₦3,500 swap fee distributed automatically</li>
+                          <li><strong>Blockchain:</strong> Bantu Network with Trovotech node integration</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </Alert>
                 </Card.Body>
               </Card>
 
@@ -1455,7 +1471,7 @@ const AdminDashboardPage: React.FC = () => {
                 <Card.Header className="bg-white">
                   <h6 className="mb-0">
                     <Wallet size={18} className="me-2" />
-                    Trovotech Wallet API
+                    Trovotech Wallet & Blockchain API
                   </h6>
                 </Card.Header>
                 <Card.Body>
@@ -1478,7 +1494,7 @@ const AdminDashboardPage: React.FC = () => {
                           </Button>
                         </InputGroup>
                         <Form.Text className="text-muted">
-                          Your Trovotech API key for blockchain wallet operations
+                          Your Trovotech API key for blockchain wallet operations and smart contracts
                         </Form.Text>
                       </Form.Group>
                     </Col>
@@ -1492,18 +1508,28 @@ const AdminDashboardPage: React.FC = () => {
                           placeholder="https://api.trovotech.com/v1"
                         />
                         <Form.Text className="text-muted">
-                          Trovotech API endpoint URL
+                          Trovotech API endpoint URL (Bantu blockchain node)
                         </Form.Text>
                       </Form.Group>
                     </Col>
                   </Row>
-                  <Alert variant="info" className="mb-0">
+                  <Alert variant="info" className="mb-2">
+                    <small>
+                      <strong>Smart Contracts Deployed:</strong>
+                      <ul className="mb-0 mt-1">
+                        <li><code>distributeRideRevenue()</code> - Vehicle revenue distribution (EKT layer)</li>
+                        <li><code>distributeSwapRevenue()</code> - Swap station fee distribution (SST layer)</li>
+                        <li><code>mintUsageToken()</code> - UST token creation per ride/swap event</li>
+                      </ul>
+                    </small>
+                  </Alert>
+                  <Alert variant="success" className="mb-0">
                     <small>
                       <strong>Documentation:</strong> Visit{' '}
                       <a href="https://docs.trovotech.com" target="_blank" rel="noopener noreferrer">
                         Trovotech Developer Docs
                       </a>{' '}
-                      to get your API credentials.
+                      to get your API credentials and smart contract addresses.
                     </small>
                   </Alert>
                 </Card.Body>
@@ -1592,7 +1618,7 @@ const AdminDashboardPage: React.FC = () => {
                 <Card.Header className="bg-white">
                   <h6 className="mb-0">
                     <Radio size={18} className="me-2" />
-                    OEM Telemetry Integration
+                    OEM Telemetry Integration (Qoray)
                   </h6>
                 </Card.Header>
                 <Card.Body>
@@ -1604,12 +1630,13 @@ const AdminDashboardPage: React.FC = () => {
                           value={apiConfig.oem_telemetry_provider}
                           onChange={(e) => handleConfigChange('oem_telemetry_provider', e.target.value)}
                         >
+                          <option value="qoray">Qoray OEM Telemetry (Recommended)</option>
                           <option value="trovotech">Trovotech Telemetry</option>
                           <option value="iot_device">Direct IoT Device Integration</option>
                           <option value="custom">Custom OEM Integration</option>
                         </Form.Select>
                         <Form.Text className="text-muted">
-                          Select your vehicle telemetry data source
+                          Select your vehicle telemetry data source for revenue verification
                         </Form.Text>
                       </Form.Group>
                     </Col>
@@ -1644,7 +1671,7 @@ const AdminDashboardPage: React.FC = () => {
                           type="text"
                           value={apiConfig.oem_base_url}
                           onChange={(e) => handleConfigChange('oem_base_url', e.target.value)}
-                          placeholder="https://telemetry.trovotech.com/api"
+                          placeholder="https://telemetry.qoray.com/api"
                         />
                         <Form.Text className="text-muted">
                           OEM telemetry API endpoint URL
@@ -1652,10 +1679,21 @@ const AdminDashboardPage: React.FC = () => {
                       </Form.Group>
                     </Col>
                   </Row>
+                  <Alert variant="warning" className="mb-2">
+                    <small>
+                      <strong>Revenue Flow Integration:</strong> Telemetry data from Qoray is verified by Trovotech nodes before triggering smart contract revenue distribution. Each completed ride cycle automatically:
+                    </small>
+                    <ul className="mb-0 small mt-1">
+                      <li>Records ride completion and battery swap event</li>
+                      <li>Triggers <code>distributeRideRevenue()</code> for ₦7,500 net split</li>
+                      <li>Triggers <code>distributeSwapRevenue()</code> for ₦3,500 swap fee</li>
+                      <li>Mints UST tokens for transparent accounting</li>
+                    </ul>
+                  </Alert>
                   <Alert variant="info" className="mb-0">
                     <small>
                       <strong>Note:</strong> OEM telemetry integration allows real-time tracking of battery levels,
-                      GPS location, speed, and other vehicle metrics.
+                      GPS location, speed, ride completion, and triggers automated revenue distribution via smart contracts.
                     </small>
                   </Alert>
                 </Card.Body>
@@ -1691,19 +1729,35 @@ const AdminDashboardPage: React.FC = () => {
                     <strong>For Developers:</strong> You can also set these values in your backend <code>.env</code> file:
                   </Alert>
                   <pre className="bg-light p-3 rounded">
-{`# Trovotech Wallet API
+{`# Trovotech Wallet & Blockchain API (Bantu Network)
 TROVOTECH_API_KEY=your_api_key_here
 TROVOTECH_BASE_URL=https://api.trovotech.com/v1
+BANTU_NETWORK=mainnet
+SMART_CONTRACT_ADDRESS_EKT=0x...
+SMART_CONTRACT_ADDRESS_SST=0x...
 
 # KYC Provider (IdentityPass)
 KYC_PROVIDER=identitypass
 IDENTITYPASS_API_KEY=your_api_key_here
 IDENTITYPASS_BASE_URL=https://api.myidentitypass.com/api/v2
 
-# OEM Telemetry
-OEM_TELEMETRY_PROVIDER=trovotech
+# OEM Telemetry (Qoray)
+OEM_TELEMETRY_PROVIDER=qoray
 OEM_TELEMETRY_API_KEY=your_api_key_here
-OEM_TELEMETRY_BASE_URL=https://telemetry.trovotech.com/api`}
+OEM_TELEMETRY_BASE_URL=https://telemetry.qoray.com/api
+
+# Dual Revenue Framework Settings
+REVENUE_VEHICLE_GROSS=11000
+REVENUE_SWAP_FEE=3500
+REVENUE_VEHICLE_NET=7500
+INVESTOR_SHARE_PERCENT=50
+RIDER_SHARE_PERCENT=25
+FT_MANAGEMENT_PERCENT=20
+RESERVE_FUND_PERCENT=5
+SST_INVESTOR_PERCENT=60
+FT_OPS_PERCENT=25
+ENERGY_PROVIDER_PERCENT=10
+RIDER_POOL_PERCENT=5`}
                   </pre>
                   <small className="text-muted">
                     File location: <code>backend/.env</code>
