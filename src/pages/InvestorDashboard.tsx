@@ -3,6 +3,9 @@ import { Asset, Token, Payout } from '../types';
 import { createWallet, getWallet, mintAssetToken, getMyTokens, WalletResponse, TokenMintResponse } from '../services/trovotech';
 import { fetchRevenueSummary, RevenueBreakdown as RevenueBreakdownType } from '../services/api';
 import { PortfolioSummary } from '../components/PortfolioSummary';
+import { PortfolioPerformance } from '../components/PortfolioPerformance';
+import { TransactionHistory } from '../components/TransactionHistory';
+import { PayoutHistory } from '../components/PayoutHistory';
 import { RoleCapabilities } from '../components/RoleCapabilities';
 import { WalletWidget } from '../components/WalletWidget';
 import { InvestmentWizard } from '../components/InvestmentWizard';
@@ -177,11 +180,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
   const totalInvestment = myTokens.reduce((sum, token) => sum + (token.investAmount || 0), 0);
   const totalPayoutsReceived = (payouts || []).reduce((sum, payout) => sum + (payout.investorShare || 0), 0);
 
-  // Get user's tokenized assets
-  const myAssets = (assets || []).filter(asset => 
-    myTokens.some(token => token.assetId === asset.id)
-  );
-
+  // Get available assets for investment
   const availableAssets = (assets || []).filter(asset => 
     !myTokens.some(token => token.assetId === asset.id)
   );
@@ -338,10 +337,24 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
         </div>
       )}
 
+      {/* Portfolio Performance */}
+      {wallet && myTokens.length > 0 && (
+        <div className="mb-4">
+          <PortfolioPerformance />
+        </div>
+      )}
+
       {/* Revenue Allocation Breakdown */}
       <div className="mb-4">
         <RevenueBreakdown data={revenueData} loading={loadingRevenue} />
       </div>
+
+      {/* Transaction History */}
+      {wallet && (
+        <div className="mb-4">
+          <TransactionHistory walletAddress={wallet.walletAddress} />
+        </div>
+      )}
 
       {/* Available Assets for Investment */}
       {availableAssets.length > 0 && (
@@ -465,47 +478,9 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
         </div>
       </div>
 
-      {/* Recent Payouts */}
-      <div className="card shadow-sm border-0">
-        <div className="card-header bg-white border-bottom">
-          <h5 className="mb-0"><i className="bi bi-cash-stack me-2 text-success"></i>Recent Payouts</h5>
-        </div>
-        <div className="card-body">
-          {payouts.length === 0 ? (
-            <div className="text-center py-4">
-              <i className="bi bi-cash display-4 text-muted"></i>
-              <p className="text-muted mt-2">No payouts received yet</p>
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="table table-hover">
-                <thead>
-                  <tr>
-                    <th>Period</th>
-                    <th>Asset ID</th>
-                    <th>Gross Revenue</th>
-                    <th>My Share</th>
-                    <th>Ownership %</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payouts.map(payout => {
-                    const token = tokens.find(t => t.id === payout.tokenId);
-                    return (
-                      <tr key={payout.payoutId}>
-                        <td className="fw-bold">{payout.month || 'N/A'}</td>
-                        <td>{token?.assetId || 'N/A'}</td>
-                        <td>₦{(payout.grossRevenue || 0).toLocaleString()}</td>
-                        <td className="fw-bold text-success">₦{(payout.investorShare || 0).toLocaleString()}</td>
-                        <td>{token && token.fraction ? `${(token.fraction * 100).toFixed(1)}%` : '-'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+      {/* Payout History */}
+      <div className="mb-4">
+        <PayoutHistory payouts={payouts} tokens={tokens} />
       </div>
 
       {/* Investment Wizard */}
