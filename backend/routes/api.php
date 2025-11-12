@@ -168,7 +168,7 @@ Route::middleware('auth:sanctum')->group(function () {
                 'transactions_count' => \App\Models\WalletTransaction::count(),
             ]);
         });
-        
+
         // Admin dashboard analytics endpoints
         Route::get('/dashboard/overview', [AdminDashboardController::class, 'overview']);
         Route::get('/dashboard/realtime', [AdminDashboardController::class, 'realtime']);
@@ -215,6 +215,20 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/capabilities/{id}', [\App\Http\Controllers\RoleCapabilityController::class, 'update']);
         Route::delete('/capabilities/{id}', [\App\Http\Controllers\RoleCapabilityController::class, 'destroy']);
         Route::get('/role-stats', [\App\Http\Controllers\RoleCapabilityController::class, 'getRoleStats']);
+
+        // User Management - Comprehensive CRUD operations
+        Route::prefix('user-management')->group(function () {
+            Route::get('/', [\App\Http\Controllers\UserManagementController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\UserManagementController::class, 'store']);
+            Route::get('/{id}', [\App\Http\Controllers\UserManagementController::class, 'show']);
+            Route::put('/{id}', [\App\Http\Controllers\UserManagementController::class, 'update']);
+            Route::patch('/{id}', [\App\Http\Controllers\UserManagementController::class, 'update']);
+            Route::delete('/{id}', [\App\Http\Controllers\UserManagementController::class, 'destroy']);
+            Route::post('/{id}/toggle-status', [\App\Http\Controllers\UserManagementController::class, 'toggleStatus']);
+            Route::post('/{id}/reset-password', [\App\Http\Controllers\UserManagementController::class, 'resetPassword']);
+            Route::post('/bulk-action', [\App\Http\Controllers\UserManagementController::class, 'bulkAction']);
+            Route::get('/export/csv', [\App\Http\Controllers\UserManagementController::class, 'exportCsv']);
+        });
     });
 
     // TrovoTech public/auth investor/operator endpoints separated for clarity

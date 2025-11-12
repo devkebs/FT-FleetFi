@@ -451,11 +451,11 @@ class AdminDashboardController extends Controller
 
         // Using User model with kyc_status field
         $query = User::select('id', 'name', 'email', 'role', 'kyc_status', 'kyc_verified_at', 'created_at', 'updated_at');
-        
+
         if ($status) {
             $query->where('kyc_status', $status);
         }
-        
+
         $submissions = $query->orderBy('created_at', 'desc')->paginate(20);
 
         $stats = [
@@ -854,7 +854,7 @@ class AdminDashboardController extends Controller
     {
         try {
             $user = User::findOrFail($userId);
-            
+
             // Update KYC status to verified
             $user->kyc_status = 'verified';
             $user->kyc_verified_at = now();
@@ -899,7 +899,7 @@ class AdminDashboardController extends Controller
             ]);
 
             $user = User::findOrFail($userId);
-            
+
             // Update KYC status to rejected
             $user->kyc_status = 'rejected';
             $user->kyc_rejected_reason = $request->input('reason', 'Documents verification failed');
@@ -941,7 +941,7 @@ class AdminDashboardController extends Controller
         try {
             $type = $request->query('type', 'all');
             $perPage = $request->query('per_page', 50);
-            
+
             $query = WalletTransaction::with('user', 'wallet')
                 ->orderBy('created_at', 'desc');
 
@@ -989,7 +989,7 @@ class AdminDashboardController extends Controller
     {
         $total = WalletTransaction::count();
         if ($total === 0) return 0;
-        
+
         $successful = WalletTransaction::where('status', 'completed')->count();
         return round(($successful / $total) * 100, 2);
     }
@@ -1084,10 +1084,10 @@ class AdminDashboardController extends Controller
         // Simplified uptime calculation
         $startTime = cache()->get('app_start_time', now());
         $diff = now()->diffInMinutes($startTime);
-        
+
         $hours = floor($diff / 60);
         $minutes = $diff % 60;
-        
+
         return "{$hours}h {$minutes}m";
     }
 
@@ -1115,7 +1115,7 @@ class AdminDashboardController extends Controller
     {
         $warningActions = ['kyc_rejected', 'user_suspended', 'transaction_failed'];
         $errorActions = ['system_error', 'api_error'];
-        
+
         if (in_array($action, $errorActions)) return 'ERROR';
         if (in_array($action, $warningActions)) return 'WARN';
         return 'INFO';

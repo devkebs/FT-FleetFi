@@ -32,9 +32,7 @@ import {
   Cpu,
   HardDrive,
   AlertTriangle,
-  RefreshCw,
-  Filter,
-  Search
+  RefreshCw
 } from 'lucide-react';
 import {
   LineChart,
@@ -52,6 +50,8 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { useAuth } from '../contexts/AuthContext';
+import { UserManagement } from '../components/UserManagement';
+import { UserModal } from '../components/UserModal';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // API client
@@ -141,12 +141,16 @@ const AdminDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // User Management Modal State
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [userModalMode, setUserModalMode] = useState<'view' | 'edit' | 'create'>('view');
+
   // Data states
   const [kycUsers, setKycUsers] = useState<KycUser[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transactionStats, setTransactionStats] = useState<any>({});
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
-  const [users, setUsers] = useState<any[]>([]);
 
   // Modal states
   const [showKycModal, setShowKycModal] = useState(false);
@@ -155,7 +159,6 @@ const AdminDashboardPage: React.FC = () => {
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
 
   // Search and filter states
-  const [userSearchTerm, setUserSearchTerm] = useState('');
   const [kycFilter, setKycFilter] = useState('all');
   const [transactionFilter, setTransactionFilter] = useState('all');
 
@@ -717,92 +720,25 @@ const AdminDashboardPage: React.FC = () => {
           </>
         )}
 
-        {/* Users Tab */}
+        {/* Users Tab - User Management */}
         {activeTab === 'users' && (
-          <Row>
-            <Col lg={12}>
-              <Card className="shadow-sm">
-                <Card.Header className="bg-white d-flex justify-content-between align-items-center">
-                  <h6 className="mb-0">User Management</h6>
-                  <div className="d-flex gap-2">
-                    <InputGroup style={{ width: '300px' }}>
-                      <InputGroup.Text>
-                        <Search size={16} />
-                      </InputGroup.Text>
-                      <Form.Control
-                        placeholder="Search users..."
-                        value={userSearchTerm}
-                        onChange={(e) => setUserSearchTerm(e.target.value)}
-                      />
-                    </InputGroup>
-                    <Button variant="outline-secondary" size="sm" title="Advanced Filters">
-                      <Filter size={16} />
-                    </Button>
-                    <Button variant="primary" size="sm">Add User</Button>
-                  </div>
-                </Card.Header>
-                <Card.Body className="p-0">
-                  <Table hover responsive>
-                    <thead className="table-light">
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>KYC Status</th>
-                        <th>Wallet Balance</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users
-                        .filter(u => {
-                          if (!userSearchTerm) return true;
-                          const searchLower = userSearchTerm.toLowerCase();
-                          return u.name?.toLowerCase().includes(searchLower) ||
-                                 u.email?.toLowerCase().includes(searchLower) ||
-                                 u.role?.toLowerCase().includes(searchLower);
-                        })
-                        .map((userData: any) => {
-                          const roleColors: any = {
-                            admin: 'danger',
-                            operator: 'warning',
-                            investor: 'primary',
-                            driver: 'success',
-                          };
-                          const kycColors: any = {
-                            verified: 'success',
-                            pending: 'warning',
-                            submitted: 'info',
-                            rejected: 'danger',
-                          };
-
-                          return (
-                            <tr key={userData.id}>
-                              <td>{userData.name}</td>
-                              <td>{userData.email}</td>
-                              <td><Badge bg={roleColors[userData.role] || 'secondary'}>{userData.role}</Badge></td>
-                              <td><Badge bg={kycColors[userData.kyc_status] || 'secondary'}>{userData.kyc_status}</Badge></td>
-                              <td>${(userData.wallet?.balance || userData.wallet_balance || 0).toLocaleString()}</td>
-                              <td>
-                                <Button variant="sm" size="sm" className="me-1" onClick={() => { setSelectedUser(userData); setShowKycModal(true); }}>View</Button>
-                                <Button variant="outline-secondary" size="sm">Edit</Button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      {users.length === 0 && (
-                        <tr>
-                          <td colSpan={6} className="text-center py-4 text-muted">
-                            No users found
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </Table>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
+          <UserManagement
+            onViewDetails={(userId) => {
+              setSelectedUserId(userId);
+              setUserModalMode('view');
+              setShowUserModal(true);
+            }}
+            onEditUser={(user) => {
+              setSelectedUserId(user.id);
+              setUserModalMode('edit');
+              setShowUserModal(true);
+            }}
+            onCreateUser={() => {
+              setSelectedUserId(null);
+              setUserModalMode('create');
+              setShowUserModal(true);
+            }}
+          />
         )}
 
         {/* Fleet Tab */}
@@ -1801,6 +1737,24 @@ OEM_TELEMETRY_BASE_URL=https://telemetry.trovotech.com/api`}
             <Button variant="secondary" onClick={() => setShowTransactionModal(false)}>Close</Button>
           </Modal.Footer>
         </Modal>
+
+        {/* User Management Modal */}
+        {showUserModal && (
+          <UserModal
+            userId={selectedUserId}
+            mode={userModalMode}
+            onClose={() => {
+              setShowUserModal(false);
+              setSelectedUserId(null);
+            }}
+            onSave={() => {
+              // Refresh data after save
+              if (activeTab === 'users') {
+                // The UserManagement component will refresh itself
+              }
+            }}
+          />
+        )}
       </Container>
     </div>
   );
