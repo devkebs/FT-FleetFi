@@ -57,7 +57,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 // API client
 const apiClient = {
   get: async (url: string) => {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
     const response = await fetch(`http://127.0.0.1:8000/api${url}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -68,7 +68,7 @@ const apiClient = {
     return response.json();
   },
   post: async (url: string, body?: any) => {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
     const response = await fetch(`http://127.0.0.1:8000/api${url}`, {
       method: 'POST',
       headers: {
@@ -217,7 +217,9 @@ const AdminDashboardPage: React.FC = () => {
   const fetchKycData = async () => {
     try {
       console.log('=== Fetching KYC Data ===');
-      console.log('Auth token exists:', !!localStorage.getItem('auth_token'));
+      const localToken = localStorage.getItem('auth_token');
+      const sessionToken = sessionStorage.getItem('auth_token');
+      console.log('Auth token - localStorage:', !!localToken, 'sessionStorage:', !!sessionToken);
       
       const response = await apiClient.get('/admin/dashboard/kyc-management');
       console.log('KYC Response received:', response);
@@ -269,7 +271,9 @@ const AdminDashboardPage: React.FC = () => {
   const fetchUsers = async () => {
     try {
       console.log('=== Fetching Users ===');
-      console.log('Auth token exists:', !!localStorage.getItem('auth_token'));
+      const localToken = localStorage.getItem('auth_token');
+      const sessionToken = sessionStorage.getItem('auth_token');
+      console.log('Auth token - localStorage:', !!localToken, 'sessionStorage:', !!sessionToken);
       console.log('Making request to: /admin/users');
       
       const response = await apiClient.get('/admin/users');
