@@ -52,6 +52,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { UserManagement } from '../components/UserManagement';
 import { UserModal } from '../components/UserModal';
+import { DualRevenueBreakdown } from '../components/DualRevenueBreakdown';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // API client
@@ -563,6 +564,12 @@ const AdminDashboardPage: React.FC = () => {
             </Nav.Link>
           </Nav.Item>
           <Nav.Item>
+            <Nav.Link active={activeTab === 'revenue'} onClick={() => setActiveTab('revenue')}>
+              <DollarSign size={16} className="me-2" />
+              Revenue Model
+            </Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
             <Nav.Link active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')}>
               <CreditCard size={16} className="me-2" />
               Transactions
@@ -819,6 +826,23 @@ const AdminDashboardPage: React.FC = () => {
                   </Table>
                 </Card.Body>
               </Card>
+            </Col>
+          </Row>
+        )}
+
+        {/* Revenue Model Tab */}
+        {activeTab === 'revenue' && (
+          <Row>
+            <Col lg={12} className="mb-4">
+              <DualRevenueBreakdown 
+                metrics={{
+                  totalRides: dashboardData.totalRides || 0,
+                  totalSwaps: dashboardData.totalRides || 0, // Each ride triggers a swap
+                  grossRevenue: dashboardData.totalRevenue || 0,
+                  vehicleNetRevenue: (dashboardData.totalRides || 0) * 7500, // ₦7,500 net per ride
+                  swapRevenue: (dashboardData.totalRides || 0) * 3500 // ₦3,500 per swap
+                }}
+              />
             </Col>
           </Row>
         )}

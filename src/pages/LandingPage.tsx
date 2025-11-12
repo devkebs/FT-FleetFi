@@ -18,22 +18,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'investor' | 'operator' | 'driver'>('investor');
 
   useEffect(() => {
-    // Check backend connectivity
+    // Check backend connectivity - 401 is expected when not logged in
     fetch('http://localhost:8000/api/user', {
       method: 'GET',
       headers: { 'Accept': 'application/json' }
     })
-      .then(() => {
-        setBackendStatus('online');
-        // Fetch live metrics
-        fetchLiveMetrics();
+      .then((response) => {
+        // Backend is online if we get any response (200 or 401)
+        if (response.status === 200 || response.status === 401) {
+          setBackendStatus('online');
+          // Fetch live metrics
+          fetchLiveMetrics();
+        } else {
+          setBackendStatus('offline');
+        }
       })
       .catch(() => setBackendStatus('offline'));
   }, []);
 
   const fetchLiveMetrics = async () => {
     try {
-      // Fetch revenue summary
+      // Fetch revenue summary - 401 is expected when not logged in
       const response = await fetch('http://localhost:8000/api/revenue/summary', {
         headers: { 'Accept': 'application/json' }
       });
@@ -47,8 +52,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           totalInvestors: 450 // Projected
         });
       }
+      // Silently ignore 401 errors - user is not logged in yet
     } catch (error) {
-      console.warn('Failed to fetch live metrics:', error);
+      // Only log network errors, not auth errors
+      if (!(error instanceof TypeError && error.message.includes('Failed to fetch'))) {
+        console.warn('Failed to fetch live metrics:', error);
+      }
     }
   };
 

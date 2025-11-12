@@ -36,7 +36,11 @@ export const PortfolioPerformance: React.FC = () => {
       setLoading(true);
       const token = getStoredToken();
       if (!token) {
-        throw new Error('Not authenticated');
+        // No token - silently set empty state
+        setPerformance(null);
+        setError(null);
+        setLoading(false);
+        return;
       }
       const response = await fetch('http://localhost:8000/api/portfolio/performance', {
         headers: {
@@ -44,14 +48,28 @@ export const PortfolioPerformance: React.FC = () => {
           'Accept': 'application/json',
         },
       });
-      if (!response.ok) {
-        throw new Error('Failed to fetch performance data');
+      
+      if (response.status === 401) {
+        // Auth error - user session expired, show friendly message
+        setPerformance(null);
+        setError('Session expired. Please login again.');
+        return;
       }
+      
+      if (!response.ok) {
+        // Other errors - show error message but don't crash
+        setPerformance(null);
+        setError('Unable to load performance data');
+        return;
+      }
+      
       const data = await response.json();
       setPerformance(data);
-    } catch (err) {
-      setError((err as Error).message);
-      console.error('Performance fetch error:', err);
+      setError(null);
+    } catch (err: any) {
+      // Handle all errors gracefully without crashing
+      setError('Unable to load performance data');
+      setPerformance(null);
     } finally {
       setLoading(false);
     }
@@ -83,7 +101,10 @@ export const PortfolioPerformance: React.FC = () => {
     return null;
   }
 
-  const profitLoss = performance.current_value - performance.total_investment;
+  // Add default values to prevent undefined errors
+  const totalInvestment = performance.total_investment ?? 0;
+  const currentValue = performance.current_value ?? 0;
+  const profitLoss = currentValue - totalInvestment;
   const isProfitable = profitLoss >= 0;
 
   return (
@@ -105,13 +126,13 @@ export const PortfolioPerformance: React.FC = () => {
           <div className="col-md-3">
             <div className="p-3 bg-light rounded">
               <small className="text-muted d-block mb-1">Total Investment</small>
-              <h6 className="mb-0 fw-bold">₦{performance.total_investment.toLocaleString()}</h6>
+              <h6 className="mb-0 fw-bold">₦{totalInvestment.toLocaleString()}</h6>
             </div>
           </div>
           <div className="col-md-3">
             <div className="p-3 bg-light rounded">
               <small className="text-muted d-block mb-1">Current Value</small>
-              <h6 className="mb-0 fw-bold">₦{performance.current_value.toLocaleString()}</h6>
+              <h6 className="mb-0 fw-bold">₦{currentValue.toLocaleString()}</h6>
             </div>
           </div>
           <div className="col-md-3">
@@ -126,7 +147,7 @@ export const PortfolioPerformance: React.FC = () => {
             <div className={`p-3 rounded ${isProfitable ? 'bg-success bg-opacity-10' : 'bg-danger bg-opacity-10'}`}>
               <small className="text-muted d-block mb-1">ROI</small>
               <h6 className={`mb-0 fw-bold ${isProfitable ? 'text-success' : 'text-danger'}`}>
-                {isProfitable ? '+' : ''}{performance.roi_percent.toFixed(2)}%
+                {isProfitable ? '+' : ''}{(performance.roi_percent ?? 0).toFixed(2)}%
               </h6>
             </div>
           </div>
