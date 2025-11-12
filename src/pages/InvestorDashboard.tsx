@@ -6,6 +6,7 @@ import { PortfolioSummary } from '../components/PortfolioSummary';
 import { PortfolioPerformance } from '../components/PortfolioPerformance';
 import { TransactionHistory } from '../components/TransactionHistory';
 import { PayoutHistory } from '../components/PayoutHistory';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { RoleCapabilities } from '../components/RoleCapabilities';
 import { WalletWidget } from '../components/WalletWidget';
 import { InvestmentWizard } from '../components/InvestmentWizard';
@@ -209,6 +210,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
   // Handle authentication error - redirect to login
   if (authError) {
     return (
+      <ErrorBoundary>
       <div className="container-fluid py-4" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
         <div className="alert alert-warning border-0 shadow-sm">
           <h5><i className="bi bi-exclamation-triangle me-2"></i>Session Expired</h5>
@@ -512,5 +514,6 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
         />
       )}
     </div>
+    </ErrorBoundary>
   );
 };
