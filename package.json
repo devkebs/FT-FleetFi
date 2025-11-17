@@ -27,6 +27,7 @@
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.9.5",
     "recharts": "^3.4.1",
+    "stellar-base": "^13.1.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {

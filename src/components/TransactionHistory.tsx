@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, memo } from 'react';
 import { getStoredToken } from '../services/api';
 
 interface Transaction {
@@ -17,7 +17,7 @@ interface TransactionHistoryProps {
   walletAddress?: string; // For future use with blockchain explorer links
 }
 
-export const TransactionHistory: React.FC<TransactionHistoryProps> = () => {
+const TransactionHistoryComponent: React.FC<TransactionHistoryProps> = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -325,3 +325,5 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = () => {
     </div>
   );
 };
+
+export const TransactionHistory = memo(TransactionHistoryComponent);

@@ -1,17 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Page, Asset, Token, Payout, SLXListing, Pagination } from './types';
-import { initialTokens, initialPayouts, initialSLXListings } from './services/mockData';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { Page, Asset, Token, Payout, SLXListing, Pagination } from '../types';
+import { initialTokens, initialPayouts, initialSLXListings, initialAssets } from './services/mockData';
 import { Header } from './components/Header';
 import { LandingPage } from './pages/LandingPage';
-import AboutPage from './pages/AboutPage';
-import { InvestorDashboard } from './pages/InvestorDashboard';
-import { OperatorDashboard } from './pages/OperatorDashboard';
-import { DriverDashboard } from './pages/DriverDashboard';
-import AdminDashboardPage from './pages/AdminDashboardPage';
-import { AdminLoginPage } from './pages/AdminLoginPage';
-import { ESGImpactPage } from './pages/ESGImpactPage';
-import { SLXMarketplace } from './pages/SLXMarketplace';
-import { RidersPage } from './pages/RidersPage';
 import { fetchAssets, getCurrentUser, logout } from './services/api';
 import { ToastProvider } from './components/ToastProvider';
 import { AuthModal } from './components/AuthModal';
@@ -21,12 +12,38 @@ import { FeedbackModal } from './components/FeedbackModal';
 import { SentimentWidget } from './components/SentimentWidget';
 import { getKycStatus } from './services/kyc';
 import { trackEvent, trackMilestone, trackConversion } from './services/analytics';
+import { ConnectivityBanner } from './components/ConnectivityBanner';
+
+// Lazy load heavy dashboard components for better initial load
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const InvestorDashboard = lazy(() => import('./pages/InvestorDashboard').then(m => ({ default: m.InvestorDashboard })));
+const OperatorDashboard = lazy(() => import('./pages/OperatorDashboard').then(m => ({ default: m.OperatorDashboard })));
+const DriverDashboard = lazy(() => import('./pages/DriverDashboard').then(m => ({ default: m.DriverDashboard })));
+const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
+const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage').then(m => ({ default: m.AdminLoginPage })));
+const ESGImpactPage = lazy(() => import('./pages/ESGImpactPage').then(m => ({ default: m.ESGImpactPage })));
+const SLXMarketplace = lazy(() => import('./pages/SLXMarketplace').then(m => ({ default: m.SLXMarketplace })));
+const RidersPage = lazy(() => import('./pages/RidersPage'));
+// const TrovotechOnboardingPage = lazy(() => import('../pages/TrovotechOnboardingPage').then(m => ({ default: m.TrovotechOnboardingPage })));
+
+// Loading component for Suspense fallback
+const PageLoader: React.FC = () => (
+  <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px', padding: '3rem' }}>
+    <div className="text-center">
+      <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
+        <span className="visually-hidden">Loading...</span>
+      </div>
+      <p className="text-muted mt-3">Loading page...</p>
+    </div>
+  </div>
+);
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>(Page.Landing);
   const [userRole, setUserRole] = useState<'investor' | 'operator' | 'driver' | 'admin'>('investor');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userName, setUserName] = useState<string | undefined>(undefined);
+  const [demoMode, setDemoMode] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   const [showKyc, setShowKyc] = useState(false);
@@ -43,6 +60,17 @@ const App: React.FC = () => {
   const [tokens, setTokens] = useState<Token[]>(initialTokens);
   const [payouts, setPayouts] = useState<Payout[]>(initialPayouts);
   const [slxListings, setSlxListings] = useState<SLXListing[]>(initialSLXListings);
+  // Initialize demo mode from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('demo_mode') === 'true';
+      if (saved) {
+        enableDemoMode();
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   // Role-based page permission
   const pageAllowed = (role: 'investor'|'operator'|'driver'|'admin', page: Page): boolean => {
@@ -174,7 +202,10 @@ const App: React.FC = () => {
 
   // Fetch assets when entering dashboards or changing pagination
   useEffect(() => {
-    // Try to populate auth from existing token
+    // Try to populate auth from existing token (only on initial load)
+    const hasCheckedAuth = sessionStorage.getItem('auth_checked');
+    if (hasCheckedAuth) return; // Don't re-check on every render
+    
     (async () => {
       try {
         const user = await getCurrentUser();
@@ -184,16 +215,13 @@ const App: React.FC = () => {
           // Resolve role including admin; default to investor if missing
           const resolvedRole = ((user.role as 'investor'|'operator'|'driver'|'admin') || 'investor');
           setUserRole(resolvedRole);
+          sessionStorage.setItem('auth_checked', 'true');
           
-          // Check KYC status after login
+          // Check KYC status silently (no modal on page refresh)
           if (resolvedRole === 'investor' || resolvedRole === 'operator') {
             try {
               const kycData = await getKycStatus();
               setKycStatus(kycData.kyc_status);
-              // Auto-show KYC modal if pending
-              if (kycData.kyc_status === 'pending') {
-                setTimeout(() => setShowKyc(true), 1000); // Small delay for UX
-              }
             } catch (err) {
               console.warn('Failed to fetch KYC status:', err);
             }
@@ -202,6 +230,7 @@ const App: React.FC = () => {
       } catch (err: any) {
         // Silently handle auth failures - don't log as errors
         setIsAuthenticated(false);
+        sessionStorage.setItem('auth_checked', 'true');
         // If 401, redirect to landing page if on protected route
         if (err?.status === 401 || err?.message === 'Session expired') {
           const protectedPages = [
@@ -213,14 +242,17 @@ const App: React.FC = () => {
             Page.Riders
           ];
           if (protectedPages.includes(currentPage)) {
-            emitToast('info', 'Please Login', 'Please login to access this page.');
+            emitToast('info', 'Session Expired', 'Please login to continue.');
             setCurrentPage(Page.Landing);
-            // Small delay before showing auth modal
             setTimeout(() => setShowAuth(true), 500);
           }
         }
       }
     })();
+    if (demoMode) {
+      // In demo mode we don't fetch from backend; assets already injected
+      return;
+    }
     if (!(currentPage === Page.OperatorDashboard || currentPage === Page.InvestorDashboard)) return;
     (async () => {
       try {
@@ -232,49 +264,107 @@ const App: React.FC = () => {
         emitToast('danger', 'Asset load failed', (e as any).message || 'Unable to fetch assets');
       }
     })();
-  }, [currentPage, assetPage, assetPerPage]);
+  }, [currentPage, assetPage, assetPerPage, demoMode]);
+
+  const enableDemoMode = () => {
+    setDemoMode(true);
+    setAssets(initialAssets);
+    setTokens(initialTokens);
+    setPayouts(initialPayouts);
+    try { localStorage.setItem('demo_mode', 'true'); } catch {}
+    emitToast('success', 'Demo Mode Enabled', 'Sample assets, tokens and payouts loaded.');
+  };
+
+  const disableDemoMode = () => {
+    setDemoMode(false);
+    setAssets([]);
+    // Keep tokens/payouts but could clear if desired
+    try { localStorage.removeItem('demo_mode'); } catch {}
+    emitToast('info', 'Demo Mode Disabled', 'Switched back to live data (fetch on dashboard entry).');
+  };
 
   const renderPage = () => {
     switch (currentPage) {
       case Page.Landing:
-        return <LandingPage onNavigate={handleNavigate} />;
+        return <LandingPage onNavigate={handleNavigate} demoMode={demoMode} onToggleDemo={() => demoMode ? disableDemoMode() : enableDemoMode()} />;
       case Page.About:
-        return <AboutPage onNavigate={handleNavigate} />;
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <AboutPage onNavigate={handleNavigate} />
+          </Suspense>
+        );
       case Page.InvestorDashboard:
-        return <InvestorDashboard assets={assets} tokens={tokens} payouts={payouts} kycStatus={kycStatus} onOpenKyc={() => setShowKyc(true)} />;
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <InvestorDashboard demoMode={demoMode} assets={assets} tokens={tokens} payouts={payouts} kycStatus={kycStatus} onOpenKyc={() => setShowKyc(true)} />
+          </Suspense>
+        );
       case Page.OperatorDashboard:
         return (
-          <OperatorDashboard 
-            assets={assets}
-            page={assetMeta?.page || 1}
-            totalPages={assetMeta?.totalPages || 1}
-            onChangePage={(p)=> setAssetPage(p)}
-            kycStatus={kycStatus}
-            onOpenKyc={() => setShowKyc(true)}
-          />
+          <Suspense fallback={<PageLoader />}>
+            <OperatorDashboard 
+              demoMode={demoMode}
+              assets={assets}
+              page={assetMeta?.page || 1}
+              totalPages={assetMeta?.totalPages || 1}
+              onChangePage={(p)=> setAssetPage(p)}
+              kycStatus={kycStatus}
+              onOpenKyc={() => setShowKyc(true)}
+            />
+          </Suspense>
         );
       case Page.DriverDashboard:
-        return <DriverDashboard assets={assets} />;
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <DriverDashboard demoMode={demoMode} assets={assets} />
+          </Suspense>
+        );
       case Page.AdminLogin:
-        return <AdminLoginPage onAuthenticated={(role,user)=>{ 
-          setIsAuthenticated(true); 
-          setUserRole(role); 
-          setUserName(user.name); 
-          
-          // Track admin login
-          trackEvent('admin_login_success', { user_name: user.name, role });
-          trackMilestone('admin_access', { login_time: new Date().toISOString() });
-          
-          setCurrentPage(Page.AdminDashboard); 
-        }} navigate={handleNavigate} />;
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <AdminLoginPage onAuthenticated={(role,user)=>{ 
+              setIsAuthenticated(true); 
+              setUserRole(role); 
+              setUserName(user.name); 
+              
+              // Track admin login
+              trackEvent('admin_login_success', { user_name: user.name, role });
+              trackMilestone('admin_access', { login_time: new Date().toISOString() });
+              
+              setCurrentPage(Page.AdminDashboard); 
+            }} navigate={handleNavigate} />
+          </Suspense>
+        );
       case Page.AdminDashboard:
-        return <AdminDashboardPage />;
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <AdminDashboardPage />
+          </Suspense>
+        );
       case Page.Riders:
-        return <RidersPage />;
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <RidersPage />
+          </Suspense>
+        );
+      // case Page.TrovotechOnboarding:
+      //   return (
+      //     <Suspense fallback={<PageLoader />}>
+      //       <TrovotechOnboardingPage />
+      //     </Suspense>
+      //   );
       case Page.ESGImpact:
-        return <ESGImpactPage assets={assets} />;
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <ESGImpactPage assets={assets} />
+          </Suspense>
+        );
       case Page.SLXMarketplace:
-        return <SLXMarketplace slxListings={slxListings} assets={assets} />;
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <SLXMarketplace slxListings={slxListings} assets={assets} />
+          </Suspense>
+        );
       default:
         return <LandingPage onNavigate={handleNavigate} />;
     }
@@ -288,6 +378,7 @@ const App: React.FC = () => {
   return (
     <ToastProvider>
     <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+      <ConnectivityBanner />
       <Header 
         currentPage={currentPage} 
         onPageChange={handleNavigate}
@@ -295,6 +386,7 @@ const App: React.FC = () => {
         isAuthenticated={isAuthenticated}
         userName={userName}
         kycStatus={kycStatus}
+        demoMode={demoMode}
         onLogin={() => { setShowAuth(true); setShowRegister(false); }}
         onRegister={() => { setShowRegister(true); setShowAuth(false); }}
         onLogout={async () => { 
@@ -305,6 +397,7 @@ const App: React.FC = () => {
             await logout(); 
             setIsAuthenticated(false); 
             setUserName(undefined); 
+            sessionStorage.removeItem('auth_checked'); // Clear auth check flag
             emitToast('success', 'Signed out', 'You have been logged out.'); 
             setCurrentPage(Page.Landing);
           } catch(e){ 
@@ -333,6 +426,10 @@ const App: React.FC = () => {
           setIsAuthenticated(true); 
           setUserRole(role); 
           setUserName(user.name); 
+          
+          // Show single welcome toast
+          const roleLabels: Record<string, string> = { investor: 'Investor', operator: 'Operator', driver: 'Driver', admin: 'Admin' };
+          emitToast('success', 'Welcome!', `Signed in as ${roleLabels[role]}`);
           
           // Track login milestone
           trackMilestone('user_login', { role, user_id: user.id });

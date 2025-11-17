@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 
 interface RevenueMetrics {
   totalRides: number;
@@ -8,7 +8,7 @@ interface RevenueMetrics {
   swapRevenue: number;
 }
 
-export const DualRevenueBreakdown: React.FC<{ metrics?: RevenueMetrics }> = ({ 
+const DualRevenueBreakdownComponent: React.FC<{ metrics?: RevenueMetrics }> = ({ 
   metrics = {
     totalRides: 0,
     totalSwaps: 0,
@@ -295,3 +295,5 @@ export const DualRevenueBreakdown: React.FC<{ metrics?: RevenueMetrics }> = ({
     </div>
   );
 };
+
+export const DualRevenueBreakdown = memo(DualRevenueBreakdownComponent);

@@ -34,14 +34,14 @@
 - **KYC Status**: verified
 - **Wallet Balance**: $500,000
 
-### Operator 2 - Sarah Operations
-- **Email**: sarah.ops@fleetfi.com
+### Operator 2 - Sarah Williams
+- **Email**: sarah.operator@fleetfi.com
 - **Password**: operator123
 - **Role**: Operator
 - **KYC Status**: verified
 - **Wallet Balance**: $500,000
 
-### Operator 3 - David Fleet Manager
+### Operator 3 - David Brown
 - **Email**: david.fleet@fleetfi.com
 - **Password**: operator123
 - **Role**: Operator

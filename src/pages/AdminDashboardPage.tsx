@@ -92,6 +92,7 @@ interface DashboardData {
   totalAssets: number;
   activeAssets: number;
   pendingKyc: number;
+  totalRides?: number;
 }
 
 interface KycUser {
@@ -288,15 +289,15 @@ const AdminDashboardPage: React.FC = () => {
       if (response.success) {
         const usersData = response.users || [];
         console.log('✓ Users data found:', usersData.length, 'users');
-        setUsers(usersData);
+        // Note: This data is for display purposes, not stored in state
       } else {
         console.error('✗ Response success=false:', response);
       }
     } catch (error) {
       console.error('✗ Failed to fetch users:', error);
       console.error('Error details:', {
-        message: error.message,
-        stack: error.stack
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
       });
     }
   };

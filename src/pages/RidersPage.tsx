@@ -302,3 +302,5 @@ export const RidersPage: React.FC = () => {
     </div>
   );
 };
+
+export default RidersPage;

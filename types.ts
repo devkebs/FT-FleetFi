@@ -1,11 +1,16 @@
 
 export enum Page {
   Landing,
+  About,
   InvestorDashboard,
   OperatorDashboard,
+  DriverDashboard,
+  AdminDashboard,
+  AdminLogin,
   ESGImpact,
   SLXMarketplace,
   Riders,
+  TrovotechOnboarding,
 }
 
 export type AssetType = 'EV' | 'Battery' | 'Cabinet';
@@ -59,4 +64,12 @@ export interface Rider {
   totalEarnings: number;
   rating: number;
   joinedDate: string;
+}
+
+export interface Pagination<T> {
+  data: T[];
+  page: number;
+  perPage: number;
+  total: number;
+  totalPages: number;
 }

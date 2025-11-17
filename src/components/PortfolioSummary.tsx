@@ -161,11 +161,11 @@ export const PortfolioSummary: React.FC = () => {
                       </div>
                       <div className="mb-2">
                         <small className="text-muted">Investment</small>
-                        <div className="fw-bold">₦{chain.total_investment.toLocaleString()}</div>
+                        <div className="fw-bold">₦{(Number(chain.total_investment) || 0).toLocaleString()}</div>
                       </div>
                       <div className="mb-2">
                         <small className="text-muted">Returns</small>
-                        <div className="fw-bold text-success">₦{chain.total_returns.toLocaleString()}</div>
+                        <div className="fw-bold text-success">₦{(Number(chain.total_returns) || 0).toLocaleString()}</div>
                       </div>
                       <div>
                         <span className={`badge ${chain.roi_percent >= 0 ? 'bg-success' : 'bg-danger'}`}>
@@ -221,9 +221,9 @@ export const PortfolioSummary: React.FC = () => {
                       <td>
                         <span className="badge bg-primary">{token.fraction_owned}%</span>
                       </td>
-                      <td className="text-success">₦{token.investment_amount.toLocaleString()}</td>
-                      <td className="text-info">₦{token.current_value.toLocaleString()}</td>
-                      <td className="text-warning fw-bold">₦{token.total_returns.toLocaleString()}</td>
+                      <td className="text-success">₦{(Number(token.investment_amount) || 0).toLocaleString()}</td>
+                      <td className="text-info">₦{(Number(token.current_value) || 0).toLocaleString()}</td>
+                      <td className="text-warning fw-bold">₦{(Number(token.total_returns) || 0).toLocaleString()}</td>
                       <td className="small text-muted">
                         {token.minted_at ? new Date(token.minted_at).toLocaleDateString() : '-'}
                       </td>

@@ -6,7 +6,7 @@ interface UserDetails {
   email: string;
   phone: string | null;
   role: 'admin' | 'operator' | 'investor' | 'driver';
-  kyc_status: 'pending' | 'approved' | 'rejected';
+  kyc_status: 'pending' | 'submitted' | 'verified' | 'rejected';
   is_active: boolean;
   created_at: string;
   email_verified_at: string | null;
@@ -71,7 +71,7 @@ export const UserModal: React.FC<UserModalProps> = ({ userId, mode, onClose, onS
     email: '',
     phone: '',
     role: 'investor' as 'admin' | 'operator' | 'investor' | 'driver',
-    kyc_status: 'pending' as 'pending' | 'approved' | 'rejected',
+    kyc_status: 'pending' as 'pending' | 'submitted' | 'verified' | 'rejected',
     password: '',
     password_confirmation: '',
   });
@@ -209,7 +209,9 @@ export const UserModal: React.FC<UserModalProps> = ({ userId, mode, onClose, onS
           updateData.password = formData.password;
         }
 
+        console.log('Updating user:', userId, 'with data:', updateData);
         response = await apiClient.put(`/admin/user-management/${userId}`, updateData);
+        console.log('Update response:', response);
       }
 
       if (response?.success) {
@@ -224,6 +226,7 @@ export const UserModal: React.FC<UserModalProps> = ({ userId, mode, onClose, onS
         onClose();
       }
     } catch (error: any) {
+      console.error('Error saving user:', error);
       if (error.errors) {
         setErrors(error.errors);
       } else {
@@ -366,7 +369,8 @@ export const UserModal: React.FC<UserModalProps> = ({ userId, mode, onClose, onS
                             <dt className="col-sm-4">KYC Status:</dt>
                             <dd className="col-sm-8">
                               <span className={`badge bg-${
-                                user.kyc_status === 'approved' ? 'success' :
+                                user.kyc_status === 'verified' ? 'success' :
+                                user.kyc_status === 'submitted' ? 'info' :
                                 user.kyc_status === 'pending' ? 'warning' : 'danger'
                               }`}>
                                 {user.kyc_status}
@@ -641,7 +645,8 @@ export const UserModal: React.FC<UserModalProps> = ({ userId, mode, onClose, onS
                       disabled={saving}
                     >
                       <option value="pending">Pending</option>
-                      <option value="approved">Approved</option>
+                      <option value="submitted">Submitted</option>
+                      <option value="verified">Verified</option>
                       <option value="rejected">Rejected</option>
                     </select>
                     {errors.kyc_status && (

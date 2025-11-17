@@ -2,6 +2,8 @@
 // API Configuration & Constants
 // ============================================================================
 
+import { apiCache, staleWhileRevalidate } from '../utils/apiCache';
+
 const API_VERSION = 'v1';
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000';
 const API_URL = `${API_BASE_URL}/api`;
@@ -252,13 +254,20 @@ export const AuthAPI = {
   async logout(): Promise<void> {
     await client.post('/logout');
     TokenManager.clear();
+    // Clear all caches on logout
+    apiCache.clear();
   },
 
   async getCurrentUser(): Promise<CurrentUser> {
     if (!TokenManager.isValid()) {
       throw new Error('Session expired');
     }
-    return client.get<CurrentUser>('/user');
+    // Cache user data for 5 minutes with stale-while-revalidate
+    return staleWhileRevalidate(
+      'user:current',
+      () => client.get<CurrentUser>('/user'),
+      300000 // 5 minutes
+    );
   },
 
   async forgotPassword(email: string): Promise<void> {
@@ -316,33 +325,56 @@ function mapBackendAsset(raw: any): Asset {
 
 export const AssetAPI = {
   async list(page = 1, perPage = 10): Promise<Pagination<Asset>> {
-    const response = await client.get<any>(`/assets?page=${page}&perPage=${perPage}`);
-    return {
-      data: (response.data || []).map(mapBackendAsset),
-      page: response.page,
-      perPage: response.perPage,
-      total: response.total,
-      totalPages: response.totalPages,
-    };
+    // Cache assets list for 1 minute, invalidate on page/perPage change
+    const cacheKey = `assets:list:${page}:${perPage}`;
+    return staleWhileRevalidate(
+      cacheKey,
+      async () => {
+        const response = await client.get<any>(`/assets?page=${page}&perPage=${perPage}`);
+        return {
+          data: (response.data || []).map(mapBackendAsset),
+          page: response.page,
+          perPage: response.perPage,
+          total: response.total,
+          totalPages: response.totalPages,
+        };
+      },
+      60000 // 1 minute
+    );
   },
 
   async get(id: string): Promise<Asset> {
-    const response = await client.get<any>(`/assets/${id}`);
-    return mapBackendAsset(response);
+    // Cache individual asset for 2 minutes
+    return staleWhileRevalidate(
+      `asset:${id}`,
+      async () => {
+        const response = await client.get<any>(`/assets/${id}`);
+        return mapBackendAsset(response);
+      },
+      120000 // 2 minutes
+    );
   },
 
   async create(data: Partial<Asset>): Promise<Asset> {
     const response = await client.post<any>('/assets', data);
+    // Invalidate asset list cache when creating new asset
+    apiCache.invalidatePattern(/^assets:list:/);
     return mapBackendAsset(response);
   },
 
   async update(id: string, data: Partial<Asset>): Promise<Asset> {
     const response = await client.put<any>(`/assets/${id}`, data);
+    // Invalidate specific asset and list caches
+    apiCache.invalidate(`asset:${id}`);
+    apiCache.invalidatePattern(/^assets:list:/);
     return mapBackendAsset(response);
   },
 
   async delete(id: string): Promise<void> {
     await client.delete(`/assets/${id}`);
+    // Invalidate specific asset and list caches
+    apiCache.invalidate(`asset:${id}`);
+    apiCache.invalidatePattern(/^assets:list:/);
   },
 
   async exportCsv(): Promise<Blob> {
@@ -352,7 +384,12 @@ export const AssetAPI = {
 
 export const RiderAPI = {
   async list(): Promise<Rider[]> {
-    return client.get<Rider[]>('/riders');
+    // Cache riders list for 2 minutes
+    return staleWhileRevalidate(
+      'riders:list',
+      () => client.get<Rider[]>('/riders'),
+      120000 // 2 minutes
+    );
   },
 
   async assign(riderId: number, assetId: string): Promise<any> {
@@ -459,11 +496,21 @@ export interface Ride {
 
 export const RevenueAPI = {
   async getSummary(): Promise<RevenueBreakdown> {
-    return client.get<RevenueBreakdown>('/revenue/summary');
+    // Cache revenue summary for 1 minute
+    return staleWhileRevalidate(
+      'revenue:summary',
+      () => client.get<RevenueBreakdown>('/revenue/summary'),
+      60000 // 1 minute
+    );
   },
 
   async getRides(limit = 25): Promise<{ rides: Ride[] }> {
-    return client.get<{ rides: Ride[] }>(`/rides?limit=${limit}`);
+    // Cache rides for 30 seconds
+    return staleWhileRevalidate(
+      `rides:list:${limit}`,
+      () => client.get<{ rides: Ride[] }>(`/rides?limit=${limit}`),
+      30000 // 30 seconds
+    );
   },
 };
 
@@ -484,7 +531,12 @@ export interface CapabilitiesPayload {
 
 export const CapabilitiesAPI = {
   async get(): Promise<CapabilitiesPayload> {
-    return client.get<CapabilitiesPayload>('/capabilities');
+    // Cache capabilities for 5 minutes
+    return staleWhileRevalidate(
+      'capabilities',
+      () => client.get<CapabilitiesPayload>('/capabilities'),
+      300000 // 5 minutes
+    );
   },
 
   async getMy(): Promise<any> {

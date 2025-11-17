@@ -29,12 +29,14 @@ use App\Http\Controllers\RiderController;
 use App\Http\Controllers\OperationScheduleController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\TrovotechController;
+use App\Http\Controllers\TrovotechUserController;
 use App\Http\Controllers\KycController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\CapabilitiesController;
 use App\Http\Controllers\OperationsController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\KycWebhookController;
+use App\Http\Controllers\TrovotechWebhookController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\PortfolioController;
@@ -57,6 +59,9 @@ Route::post('/telemetry', [TelemetryController::class, 'store']);
 
 // Public KYC webhooks (provider callbacks) - secured by signature
 Route::post('/kyc/webhook/identitypass', [KycWebhookController::class, 'handleIdentityPass']);
+
+// TrovoTech blockchain webhooks - secured by signature
+Route::post('/webhooks/trovotech', [TrovotechWebhookController::class, 'handle']);
 
 // Payment gateway webhooks
 Route::post('/webhooks/paystack', [PaymentController::class, 'paystackWebhook']);
@@ -233,11 +238,28 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // TrovoTech public/auth investor/operator endpoints separated for clarity
     Route::prefix('trovotech')->group(function () {
+        // Legacy wallet endpoints (backward compatibility)
         Route::get('/wallet', [TrovotechController::class, 'getWallet'])->middleware('role:investor,operator,driver');
         Route::post('/wallet/create', [TrovotechController::class, 'createWallet'])->middleware('role:investor,operator');
         Route::get('/tokens/my', [TrovotechController::class, 'getMyTokens'])->middleware('role:investor,operator,driver');
         Route::get('/asset/{assetId}/metadata', [TrovotechController::class, 'getAssetMetadata'])->middleware('role:investor,operator,driver');
         Route::post('/token/mint', [TrovotechController::class, 'mintToken'])->middleware('role:investor,operator');
+
+        // New Trovotech API v1 endpoints (per official documentation)
+        Route::prefix('users')->group(function () {
+            // User onboarding - creates Trovo profile and wallet
+            Route::post('/onboard', [TrovotechUserController::class, 'onboardUser'])->middleware('role:investor,operator,driver');
+
+            // KYC management - admin/operator only
+            Route::post('/kyc/update', [TrovotechUserController::class, 'updateKyc'])->middleware('role:admin,operator');
+
+            // Get wallet info for authenticated user
+            Route::get('/wallet', [TrovotechUserController::class, 'getWallet'])->middleware('role:investor,operator,driver');
+
+            // Helper: Get keypair generation instructions
+            Route::get('/keypair-instructions', [TrovotechUserController::class, 'getKeypairInstructions']);
+        });
+
         // Mint restricted earlier for operator; investors may request via operator workflow (kept operator-only above)
     });
 

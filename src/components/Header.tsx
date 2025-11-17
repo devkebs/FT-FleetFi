@@ -14,6 +14,7 @@ interface HeaderProps {
   isAuthenticated?: boolean;
   userName?: string;
   kycStatus?: 'pending' | 'submitted' | 'verified' | 'rejected';
+  demoMode?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -26,7 +27,8 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   isAuthenticated,
   userName,
-  kycStatus
+  kycStatus,
+  demoMode
 }) => {
   const allNavItems = [
     { page: Page.Landing, label: 'Home', icon: 'bi-house', roles: ['investor','operator','driver','admin'] },
@@ -89,6 +91,14 @@ export const Header: React.FC<HeaderProps> = ({
           </ul>
 
           <div className="d-flex align-items-center gap-2">
+            {demoMode && (
+              <span 
+                className="badge bg-warning text-dark"
+                title="Demo Mode active: sample assets, tokens and payouts are loaded"
+              >
+                <i className="bi bi-flag-fill me-1"/>DEMO
+              </span>
+            )}
             {isAuthenticated ? (
               <>
                 {/* Notification Bell */}

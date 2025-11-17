@@ -3,6 +3,8 @@ import { Page } from '../types';
 
 interface LandingPageProps {
   onNavigate: (page: Page) => void;
+  demoMode?: boolean;
+  onToggleDemo?: () => void;
 }
 
 interface LiveMetrics {
@@ -12,7 +14,7 @@ interface LiveMetrics {
   totalInvestors: number;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, demoMode = false, onToggleDemo }) => {
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [liveMetrics, setLiveMetrics] = useState<LiveMetrics | null>(null);
   const [activeTab, setActiveTab] = useState<'investor' | 'operator' | 'driver'>('investor');
@@ -105,7 +107,31 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                 <i className="bi bi-info-circle me-2"></i>
                 About Us
               </button>
+              {onToggleDemo && (
+                <button
+                  onClick={onToggleDemo}
+                  className={`btn btn-lg ${demoMode ? 'btn-danger' : 'btn-outline-primary'} shadow-sm position-relative`}
+                >
+                  <i className="bi bi-database me-2"></i>
+                  {demoMode ? 'Disable Demo Data' : 'Enable Demo Data'}
+                  {demoMode && (
+                    <span className="badge bg-warning text-dark position-absolute top-0 start-100 translate-middle rounded-pill" style={{ fontSize: '0.6rem' }}>
+                      DEMO
+                    </span>
+                  )}
+                </button>
+              )}
             </div>
+            {demoMode && (
+              <div className="alert alert-info mt-4 d-inline-block shadow-sm" style={{ maxWidth: 640 }}>
+                <div className="d-flex align-items-start">
+                  <i className="bi bi-lightbulb me-3 fs-3 text-warning"></i>
+                  <div className="text-start small">
+                    <strong>Demo Mode Active:</strong> Sample assets, tokens and payouts are loaded for walkthrough. Disable to return to live backend fetches.
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>

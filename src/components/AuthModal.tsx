@@ -10,8 +10,6 @@ interface AuthModalProps {
   accessMessage?: string;
 }
 
-const ROLE_LABELS: Record<string,string> = { investor: 'Investor', operator: 'Operator', driver: 'Driver', admin: 'Admin' };
-
 export const AuthModal: React.FC<AuthModalProps> = ({ 
   show, 
   onClose, 
@@ -46,7 +44,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           : user.role === 'admin'
             ? 'admin'
             : 'investor') as 'investor'|'operator'|'driver'|'admin';
-      window.dispatchEvent(new CustomEvent('app:toast', { detail: { type: 'success', title: 'Welcome', message: `Signed in as ${ROLE_LABELS[resolvedRole]}` } }));
+      // Don't show toast here - let App.tsx handle it to avoid duplicate
       onSuccess(resolvedRole, user);
       onClose();
     } catch (err) {

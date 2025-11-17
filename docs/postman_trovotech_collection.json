@@ -1,0 +1,225 @@
+{
+  "info": {
+    "name": "FleetFi TrovoTech Integration",
+    "description": "Production API testing for TrovoTech blockchain integration",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TROVOTECH_API_KEY}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{TROVOTECH_BASE_URL}}/health",
+          "host": ["{{TROVOTECH_BASE_URL}}"],
+          "path": ["health"]
+        },
+        "description": "Test API connectivity"
+      }
+    },
+    {
+      "name": "2. Create Custodial Wallet",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TROVOTECH_API_KEY}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": \"test_investor_001\",\n  \"email\": \"investor@fleetfi.com\",\n  \"kyc_verified\": true\n}"
+        },
+        "url": {
+          "raw": "{{TROVOTECH_BASE_URL}}/wallets",
+          "host": ["{{TROVOTECH_BASE_URL}}"],
+          "path": ["wallets"]
+        },
+        "description": "Create investor custodial wallet"
+      }
+    },
+    {
+      "name": "3. Mint Asset Token (EKT)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TROVOTECH_API_KEY}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"issuer_id\": \"{{TROVOTECH_ISSUER_ID}}\",\n  \"asset_id\": \"ASSET_001\",\n  \"asset_type\": \"EV_VEHICLE\",\n  \"total_value\": 5000000,\n  \"fraction\": 0.10,\n  \"investor_wallet\": \"INVESTOR_WALLET_ADDRESS\",\n  \"metadata\": {\n    \"vehicle_model\": \"Innoson IVM Fox\",\n    \"battery_capacity\": \"10kWh\",\n    \"acquisition_date\": \"2025-01-15\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{TROVOTECH_BASE_URL}}/tokens/mint",
+          "host": ["{{TROVOTECH_BASE_URL}}"],
+          "path": ["tokens", "mint"]
+        },
+        "description": "Mint fractional ownership token"
+      }
+    },
+    {
+      "name": "4. Process Payout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TROVOTECH_API_KEY}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"token_id\": \"TOKEN_001\",\n  \"amount\": 37500,\n  \"currency\": \"NGN\",\n  \"period_start\": \"2025-01-01\",\n  \"period_end\": \"2025-01-31\",\n  \"investor_wallet\": \"INVESTOR_WALLET_ADDRESS\"\n}"
+        },
+        "url": {
+          "raw": "{{TROVOTECH_BASE_URL}}/payouts",
+          "host": ["{{TROVOTECH_BASE_URL}}"],
+          "path": ["payouts"]
+        },
+        "description": "Distribute monthly revenue to token holder"
+      }
+    },
+    {
+      "name": "5. Transfer Token Ownership",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TROVOTECH_API_KEY}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"token_id\": \"TOKEN_001\",\n  \"from_wallet\": \"SELLER_WALLET\",\n  \"to_wallet\": \"BUYER_WALLET\",\n  \"fraction\": 0.05,\n  \"sale_price\": 250000\n}"
+        },
+        "url": {
+          "raw": "{{TROVOTECH_BASE_URL}}/tokens/transfer",
+          "host": ["{{TROVOTECH_BASE_URL}}"],
+          "path": ["tokens", "transfer"]
+        },
+        "description": "Secondary market token transfer"
+      }
+    },
+    {
+      "name": "6. Get Token Details",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TROVOTECH_API_KEY}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{TROVOTECH_BASE_URL}}/tokens/{{token_id}}",
+          "host": ["{{TROVOTECH_BASE_URL}}"],
+          "path": ["tokens", "{{token_id}}"]
+        },
+        "description": "Retrieve token ownership and transaction history"
+      }
+    },
+    {
+      "name": "7. List Investor Portfolio",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{TROVOTECH_API_KEY}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{TROVOTECH_BASE_URL}}/wallets/{{wallet_address}}/tokens",
+          "host": ["{{TROVOTECH_BASE_URL}}"],
+          "path": ["wallets", "{{wallet_address}}", "tokens"]
+        },
+        "description": "Get all tokens owned by investor"
+      }
+    },
+    {
+      "name": "8. Webhook - Token Minted",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-TrovoTech-Signature",
+            "value": "{{webhook_signature}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"event\": \"token.minted\",\n  \"data\": {\n    \"token_id\": \"TRV_TOKEN_001\",\n    \"asset_id\": \"ASSET_001\",\n    \"investor_wallet\": \"GBANTU...\",\n    \"fraction\": 0.10,\n    \"blockchain_tx\": \"abc123xyz\",\n    \"timestamp\": \"2025-11-13T12:00:00Z\"\n  }\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/webhooks/trovotech",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "webhooks", "trovotech"]
+        },
+        "description": "Test webhook handler (simulate TrovoTech callback)"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "TROVOTECH_BASE_URL",
+      "value": "https://api.trovotech.io/v1",
+      "type": "string"
+    },
+    {
+      "key": "TROVOTECH_API_KEY",
+      "value": "your_api_key_here",
+      "type": "string"
+    },
+    {
+      "key": "TROVOTECH_ISSUER_ID",
+      "value": "FT_ISSUER_ID",
+      "type": "string"
+    }
+  ]
+}

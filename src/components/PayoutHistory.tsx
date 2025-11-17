@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { Payout, Token } from '../types';
 
 interface PayoutHistoryProps {
@@ -6,7 +6,7 @@ interface PayoutHistoryProps {
   tokens?: Token[];
 }
 
-export const PayoutHistory: React.FC<PayoutHistoryProps> = ({ payouts = [], tokens = [] }) => {
+const PayoutHistoryComponent: React.FC<PayoutHistoryProps> = ({ payouts = [], tokens = [] }) => {
   const [filter, setFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -333,3 +333,5 @@ export const PayoutHistory: React.FC<PayoutHistoryProps> = ({ payouts = [], toke
     </div>
   );
 };
+
+export const PayoutHistory = memo(PayoutHistoryComponent);

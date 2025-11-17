@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, memo } from 'react';
 import { getStoredToken } from '../services/api';
 
 interface PerformanceMetrics {
@@ -22,7 +22,7 @@ interface PerformanceMetrics {
   }>;
 }
 
-export const PortfolioPerformance: React.FC = () => {
+const PortfolioPerformanceComponent: React.FC = () => {
   const [performance, setPerformance] = useState<PerformanceMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -148,20 +148,20 @@ export const PortfolioPerformance: React.FC = () => {
           <div className="col-md-3">
             <div className="p-3 bg-light rounded">
               <small className="text-muted d-block mb-1">Total Investment</small>
-              <h6 className="mb-0 fw-bold">₦{totalInvestment.toLocaleString()}</h6>
+              <h6 className="mb-0 fw-bold">₦{(Number(totalInvestment) || 0).toLocaleString()}</h6>
             </div>
           </div>
           <div className="col-md-3">
             <div className="p-3 bg-light rounded">
               <small className="text-muted d-block mb-1">Current Value</small>
-              <h6 className="mb-0 fw-bold">₦{currentValue.toLocaleString()}</h6>
+              <h6 className="mb-0 fw-bold">₦{(Number(currentValue) || 0).toLocaleString()}</h6>
             </div>
           </div>
           <div className="col-md-3">
             <div className={`p-3 rounded ${isProfitable ? 'bg-success bg-opacity-10' : 'bg-danger bg-opacity-10'}`}>
               <small className="text-muted d-block mb-1">Profit/Loss</small>
               <h6 className={`mb-0 fw-bold ${isProfitable ? 'text-success' : 'text-danger'}`}>
-                {isProfitable ? '+' : ''}₦{profitLoss.toLocaleString()}
+                {isProfitable ? '+' : ''}₦{(Number(profitLoss) || 0).toLocaleString()}
               </h6>
             </div>
           </div>
@@ -242,7 +242,7 @@ export const PortfolioPerformance: React.FC = () => {
                       <tr key={month.month}>
                         <td className="fw-bold">{month.month}</td>
                         <td className={`text-end ${isPositive ? 'text-success' : 'text-danger'}`}>
-                          {isPositive ? '+' : ''}₦{month.returns.toLocaleString()}
+                          {isPositive ? '+' : ''}₦{(Number(month.returns) || 0).toLocaleString()}
                         </td>
                         <td className="text-end">
                           {isPositive ? (
@@ -265,7 +265,7 @@ export const PortfolioPerformance: React.FC = () => {
           <div className="d-flex justify-content-between align-items-center">
             <div>
               <small className="text-muted d-block">Total Returns Received</small>
-              <strong>₦{performance.total_returns.toLocaleString()}</strong>
+              <strong>₦{(Number(performance.total_returns) || 0).toLocaleString()}</strong>
             </div>
             <i className="bi bi-cash-stack fs-3 text-success"></i>
           </div>
@@ -274,3 +274,5 @@ export const PortfolioPerformance: React.FC = () => {
     </div>
   );
 };
+
+export const PortfolioPerformance = memo(PortfolioPerformanceComponent);

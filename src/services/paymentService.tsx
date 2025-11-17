@@ -31,8 +31,8 @@ interface FlutterwaveConfig {
 }
 
 export class PaymentService {
-  private static paystackPublicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
-  private static flutterwavePublicKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY || '';
+  private static paystackPublicKey = (import.meta as any).env?.VITE_PAYSTACK_PUBLIC_KEY || '';
+  private static flutterwavePublicKey = (import.meta as any).env?.VITE_FLUTTERWAVE_PUBLIC_KEY || '';
 
   /**
    * Initialize Paystack payment

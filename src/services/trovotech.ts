@@ -4,7 +4,7 @@
  * Backend will communicate with TrovoTech's Bantu Token Service (BTS)
  */
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 function getAuthHeaders(): HeadersInit {
   const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
@@ -115,18 +115,27 @@ export async function getWallet(): Promise<WalletResponse | null> {
  * Requires investor to have a wallet and sufficient funds in custody
  */
 export async function mintAssetToken(request: TokenMintRequest): Promise<TokenMintResponse> {
+  const headers = getAuthHeaders();
+  console.log('Minting token with headers:', headers);
+  console.log('Request payload:', request);
+  
   const response = await fetch(`${API_BASE_URL}/trovotech/token/mint`, {
     method: 'POST',
-    headers: getAuthHeaders(),
+    headers,
     body: JSON.stringify(request),
   });
 
+  console.log('Mint response status:', response.status);
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Token minting failed' }));
+    console.error('Mint error:', error);
     throw new Error(error.message || 'Failed to mint token');
   }
 
-  return response.json();
+  const result = await response.json();
+  console.log('Mint success:', result);
+  return result;
 }
 
 /**

@@ -33,29 +33,29 @@ export default function RevenueBreakdown({ data, loading }: RevenueBreakdownProp
   const items = [
     {
       label: 'Investor ROI',
-      amount: breakdown.investor_roi.amount,
-      pct: breakdown.investor_roi.pct,
+      amount: breakdown?.investor_roi?.amount || 0,
+      pct: breakdown?.investor_roi?.pct || 0,
       color: 'bg-green-500',
       textColor: 'text-green-700'
     },
     {
       label: 'Rider Wages',
-      amount: breakdown.rider_wages.amount,
-      pct: breakdown.rider_wages.pct,
+      amount: breakdown?.rider_wages?.amount || 0,
+      pct: breakdown?.rider_wages?.pct || 0,
       color: 'bg-blue-500',
       textColor: 'text-blue-700'
     },
     {
       label: 'Management Reserve',
-      amount: breakdown.management_reserve.amount,
-      pct: breakdown.management_reserve.pct,
+      amount: breakdown?.management_reserve?.amount || 0,
+      pct: breakdown?.management_reserve?.pct || 0,
       color: 'bg-purple-500',
       textColor: 'text-purple-700'
     },
     {
       label: 'Maintenance Reserve',
-      amount: breakdown.maintenance_reserve.amount,
-      pct: breakdown.maintenance_reserve.pct,
+      amount: breakdown?.maintenance_reserve?.amount || 0,
+      pct: breakdown?.maintenance_reserve?.pct || 0,
       color: 'bg-orange-500',
       textColor: 'text-orange-700'
     }
@@ -67,7 +67,7 @@ export default function RevenueBreakdown({ data, loading }: RevenueBreakdownProp
       <div className="mb-6">
         <p className="text-sm text-gray-500">Total Gross Revenue</p>
         <p className="text-3xl font-bold text-gray-900">
-          ${gross_total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          ${(Number(gross_total) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
       </div>
 
@@ -77,7 +77,7 @@ export default function RevenueBreakdown({ data, loading }: RevenueBreakdownProp
             <div className="flex justify-between items-center mb-1">
               <span className="text-sm font-medium text-gray-700">{item.label}</span>
               <span className={`text-sm font-semibold ${item.textColor}`}>
-                {item.pct.toFixed(2)}%
+                {(Number(item.pct) || 0).toFixed(2)}%
               </span>
             </div>
             <div className="flex items-center gap-3">
@@ -88,7 +88,7 @@ export default function RevenueBreakdown({ data, loading }: RevenueBreakdownProp
                 ></div>
               </div>
               <span className="text-sm font-medium text-gray-900 min-w-[80px] text-right">
-                ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${(Number(item.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
           </div>

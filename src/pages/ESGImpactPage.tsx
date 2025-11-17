@@ -5,7 +5,7 @@ interface ESGImpactPageProps {
   assets: Asset[];
 }
 
-export const ESGImpactPage: React.FC<ESGImpactPageProps> = ({ assets }) => {
+export const ESGImpactPage: React.FC<ESGImpactPageProps> = ({ assets = [] }) => {
   // Calculate impact metrics
   const totalSwaps = assets.reduce((sum, a) => sum + a.swaps, 0);
   const co2Saved = (totalSwaps * 2.3).toFixed(0); // Assume 2.3 kg CO2 saved per swap

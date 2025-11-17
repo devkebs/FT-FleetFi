@@ -6,7 +6,7 @@ interface SLXMarketplaceProps {
   slxListings: SLXListing[];
 }
 
-export const SLXMarketplace: React.FC<SLXMarketplaceProps> = ({ assets, slxListings }) => {
+export const SLXMarketplace: React.FC<SLXMarketplaceProps> = ({ assets = [], slxListings = [] }) => {
   // Get full asset data for listed items
   const listedAssets = slxListings.map(listing => {
     const asset = assets.find(a => a.id === listing.assetId);

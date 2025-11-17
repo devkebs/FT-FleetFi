@@ -36,6 +36,9 @@ return [
         'api_key' => env('TROVOTECH_API_KEY'),
         'issuer_id' => env('TROVOTECH_ISSUER_ID'),
         'sandbox_mode' => env('TROVOTECH_SANDBOX', true),
+        'webhook_secret' => env('TROVOTECH_WEBHOOK_SECRET'),
+        'timeout_ms' => env('TROVOTECH_TIMEOUT_MS', 10000),
+        'max_retries' => env('TROVOTECH_MAX_RETRIES', 3),
     ],
 
     'paystack' => [

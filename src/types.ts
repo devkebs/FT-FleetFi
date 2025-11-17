@@ -10,6 +10,7 @@ export enum Page {
   ESGImpact,
   SLXMarketplace,
   Riders,
+  TrovotechOnboarding,
 }
 
 export type AssetType = 'EV' | 'Battery' | 'Cabinet';

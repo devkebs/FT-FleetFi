@@ -7,10 +7,14 @@ import { PortfolioPerformance } from '../components/PortfolioPerformance';
 import { TransactionHistory } from '../components/TransactionHistory';
 import { PayoutHistory } from '../components/PayoutHistory';
 import { RoleCapabilities } from '../components/RoleCapabilities';
-import { WalletWidget } from '../components/WalletWidget';
 import { InvestmentWizard } from '../components/InvestmentWizard';
 import RevenueBreakdown from '../components/RevenueBreakdown';
 import { trackEvent, trackMilestone } from '../services/analytics';
+import { TrovotechOnboardingWidget } from '../components/TrovotechOnboardingWidget';
+import { WalletBalanceWidget } from '../components/WalletBalanceWidget';
+import { InvestmentTransactionHistory, Transaction } from '../components/InvestmentTransactionHistory';
+import { PayoutNotifications, PayoutNotification } from '../components/PayoutNotifications';
+import { AssetBrowserModal } from '../components/AssetBrowserModal';
 
 interface InvestorDashboardProps {
   assets?: Asset[];
@@ -18,6 +22,7 @@ interface InvestorDashboardProps {
   payouts?: Payout[];
   kycStatus?: 'pending' | 'submitted' | 'verified' | 'rejected';
   onOpenKyc?: () => void;
+  demoMode?: boolean;
 }
 
 export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ 
@@ -25,7 +30,8 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
   tokens = [], 
   payouts = [],
   kycStatus = 'pending',
-  onOpenKyc
+  onOpenKyc,
+  demoMode = false
 }) => {
   const [wallet, setWallet] = useState<WalletResponse | null>(null);
   const [myTokens, setMyTokens] = useState<TokenMintResponse[]>([]);
@@ -36,6 +42,9 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
   const [authError, setAuthError] = useState(false);
   const [showInvestModal, setShowInvestModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [notifications, setNotifications] = useState<PayoutNotification[]>([]);
+  const [showAssetBrowser, setShowAssetBrowser] = useState(false);
 
   // Load wallet and tokens on mount
   useEffect(() => {
@@ -161,8 +170,78 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
     setShowInvestModal(true);
   };
 
+  // Generate mock transactions from tokens and payouts
+  useEffect(() => {
+    const txs: Transaction[] = [];
+    
+    // Add investment transactions
+    myTokens.forEach(token => {
+      const investAmount = Number(token.investAmount) || 0;
+      if (investAmount > 0) {
+        txs.push({
+          id: `inv-${token.tokenId}`,
+          type: 'investment',
+          asset_name: token.assetName || assets.find(a => a.id === token.assetId)?.model || 'Asset',
+          amount: investAmount,
+          currency: 'NGN',
+          status: 'completed',
+          timestamp: token.mintedAt || new Date().toISOString(),
+          description: `Invested in ${token.assetName || 'asset'}`,
+          transaction_hash: token.txHash
+        });
+      }
+    });
+    
+    // Add payout transactions
+    payouts.forEach((payout, index) => {
+      const payoutAmount = Number(payout.investorShare) || 0;
+      if (payoutAmount > 0) {
+        txs.push({
+          id: `payout-${payout.payoutId || index}`,
+          type: 'payout',
+          amount: payoutAmount,
+          currency: 'NGN',
+          status: 'completed',
+          timestamp: new Date().toISOString(),
+          description: `Revenue payout for ${payout.month}`
+        });
+      }
+    });
+    
+    // Sort by timestamp descending
+    txs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    setTransactions(txs);
+  }, [myTokens, payouts, assets]);
+  
+  // Generate mock notifications from recent payouts
+  useEffect(() => {
+    const notifs: PayoutNotification[] = payouts
+      .filter(p => {
+        const amount = Number(p.investorShare);
+        return !isNaN(amount) && amount > 0;
+      })
+      .slice(0, 10)
+      .map((payout, index) => ({
+        id: `notif-${payout.payoutId || index}`,
+        title: 'Payout Received',
+        message: `You received revenue share for ${payout.month}`,
+        amount: Number(payout.investorShare) || 0,
+        currency: 'NGN',
+        asset_name: 'Portfolio',
+        timestamp: new Date().toISOString(),
+        read: false
+      }));
+    setNotifications(notifs);
+  }, [payouts]);
+
   const handleMintToken = async (params: { fractionOwned: number; investAmount: number }) => {
     if (!selectedAsset || !wallet) return;
+    
+    // Verify auth token exists
+    const authToken = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+    if (!authToken) {
+      throw new Error('Authentication token not found. Please login again.');
+    }
     
     // Track investment attempt
     trackEvent('investment_initiated', { 
@@ -202,8 +281,8 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
   };
 
   // Calculate metrics
-  const totalInvestment = myTokens.reduce((sum, token) => sum + (token.investAmount || 0), 0);
-  const totalPayoutsReceived = (payouts || []).reduce((sum, payout) => sum + (payout.investorShare || 0), 0);
+  const totalInvestment = myTokens.reduce((sum, token) => sum + (Number(token.investAmount) || 0), 0);
+  const totalPayoutsReceived = (payouts || []).reduce((sum, payout) => sum + (Number(payout.investorShare) || 0), 0);
 
   // Get available assets for investment
   const availableAssets = (assets || []).filter(asset => 
@@ -255,18 +334,74 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
   }
 
   return (
-      <div className="container-fluid py-4" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
-        <div className="d-flex align-items-center justify-content-between mb-4">
+    <div className="container-fluid py-4" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
+      <div className="d-flex align-items-center justify-content-between mb-4">
           <div>
-            <h1 className="h2 fw-bold mb-1">Investor Dashboard</h1>
-            <p className="text-muted mb-0">Manage your tokenized EV investments</p>
-          </div>
-        {!wallet && (
+            <div className="d-flex align-items-center gap-2">
+              <h1 className="h2 fw-bold mb-1">Investor Dashboard</h1>
+              {demoMode && (
+                <span className="badge bg-warning text-dark" title="Demo Mode active">DEMO</span>
+              )}
+            </div>
+          <p className="text-muted mb-0">Manage your tokenized EV investments</p>
+        </div>
+        <div className="d-flex gap-2 align-items-center">
+          <PayoutNotifications 
+            notifications={notifications}
+            onMarkAsRead={(id) => setNotifications(prev => prev.map(n => n.id === id ? {...n, read: true} : n))}
+            onMarkAllAsRead={() => setNotifications(prev => prev.map(n => ({...n, read: true})))}
+          />
+          {availableAssets.length > 0 && wallet && (
+            <button 
+              className="btn btn-success"
+              onClick={() => setShowAssetBrowser(true)}
+            >
+              <i className="bi bi-search me-2"></i>
+              Browse Assets
+            </button>
+          )}
+          {myTokens.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-outline-secondary"
+              onClick={() => {
+                try {
+                  const headers = ['Token ID','Asset ID','Asset Name','Ownership %','Investment (NGN)','Minted At','Tx Hash'];
+                  const rows = myTokens.map(t => [
+                    t.tokenId,
+                    t.assetId,
+                    (assets.find(a=>a.id===t.assetId)?.model || t.assetName || ''),
+                    String(t.fractionOwned || 0),
+                    String(t.investAmount || 0),
+                    t.mintedAt ? new Date(t.mintedAt).toISOString() : '',
+                    t.txHash || ''
+                  ]);
+                  const csv = [headers, ...rows]
+                    .map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))
+                    .join('\r\n');
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `my-tokens-${new Date().toISOString().split('T')[0]}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  window.dispatchEvent(new CustomEvent('app:toast', { detail: { type: 'success', title: 'Exported', message: 'Token holdings exported to CSV' } }));
+                } catch (e) {
+                  window.dispatchEvent(new CustomEvent('app:toast', { detail: { type: 'danger', title: 'Export failed', message: (e as any).message || 'Unable to export CSV' } }));
+                }
+              }}
+            >
+              <i className="bi bi-download me-1" />Export Tokens CSV
+            </button>
+          )}
+          {!wallet && (
           <button className="btn btn-success btn-lg" onClick={handleCreateWallet} disabled={loadingWallet}>
             <i className="bi bi-wallet2 me-2"></i>
             {loadingWallet ? 'Creating...' : 'Create Wallet'}
           </button>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Wallet Info Card */}
@@ -291,6 +426,44 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
 
       {/* Role Capabilities */}
       <RoleCapabilities />
+
+      {/* Trovotech Onboarding Widget */}
+      <TrovotechOnboardingWidget 
+        onNavigate={() => {
+          window.dispatchEvent(new CustomEvent('app:navigate', { 
+            detail: { page: 'TrovotechOnboarding' } 
+          }));
+        }}
+      />
+
+      {/* Quick Invest CTA - Only show if there are available assets and user has wallet */}
+      {wallet && availableAssets.length > 0 && (
+        <div className="card shadow-sm mb-4 border-0 bg-gradient text-white" style={{ background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' }}>
+          <div className="card-body py-4">
+            <div className="row align-items-center">
+              <div className="col-md-8">
+                <h4 className="mb-2">
+                  <i className="bi bi-rocket-takeoff me-2"></i>
+                  Start Investing Today
+                </h4>
+                <p className="mb-0 opacity-90">
+                  {availableAssets.length} {availableAssets.length === 1 ? 'asset' : 'assets'} available for fractional ownership. 
+                  Browse high-performing EVs and start earning passive income.
+                </p>
+              </div>
+              <div className="col-md-4 text-md-end mt-3 mt-md-0">
+                <button 
+                  className="btn btn-light btn-lg shadow"
+                  onClick={() => setShowAssetBrowser(true)}
+                >
+                  <i className="bi bi-search me-2"></i>
+                  Browse {availableAssets.length} {availableAssets.length === 1 ? 'Asset' : 'Assets'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Metrics Cards */}
       <div className="row g-3 mb-4">
@@ -328,19 +501,14 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
         </div>
       </div>
 
-      {/* Wallet Widget & KYC Enforcement */}
+      {/* Wallet Balance & KYC Enforcement */}
       <div className="row g-3 mb-4">
         {wallet && (
-          <div className="col-lg-6">
-            <WalletWidget 
-              userId={(wallet as any).userId || 1} 
-              walletAddress={wallet.walletAddress}
-              balance={wallet.balance || 0}
-              onRefresh={loadWallet}
-            />
+          <div className="col-lg-4">
+            <WalletBalanceWidget className="h-100" />
           </div>
         )}
-        <div className={wallet ? 'col-lg-6' : 'col-12'}>
+        <div className={wallet ? 'col-lg-8' : 'col-12'}>
           {investmentDisabled && (
             <div className="alert alert-warning border-0 shadow-sm h-100 d-flex align-items-center">
               <div className="d-flex align-items-start w-100">
@@ -379,6 +547,14 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
       {/* Revenue Allocation Breakdown */}
       <div className="mb-4">
         <RevenueBreakdown data={revenueData} loading={loadingRevenue} />
+      </div>
+
+      {/* Investment Transaction History */}
+      <div className="mb-4">
+        <InvestmentTransactionHistory 
+          transactions={transactions}
+          loading={initialLoading}
+        />
       </div>
 
       {/* Transaction History - Show even without wallet */}
@@ -495,7 +671,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
                         <td>
                           <span className="badge bg-primary">{token.fractionOwned || 0}%</span>
                         </td>
-                        <td className="fw-bold text-success">₦{(token.investAmount || 0).toLocaleString()}</td>
+                        <td className="fw-bold text-success">₦{(Number(token.investAmount) || 0).toLocaleString()}</td>
                         <td className="font-monospace small text-muted">{token.txHash ? token.txHash.slice(0, 10) : 'N/A'}...</td>
                         <td className="small text-muted">{token.mintedAt ? new Date(token.mintedAt).toLocaleDateString() : 'N/A'}</td>
                       </tr>
@@ -512,6 +688,18 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
       <div className="mb-4">
         <PayoutHistory payouts={payouts} tokens={tokens} />
       </div>
+
+      {/* Asset Browser Modal */}
+      {showAssetBrowser && availableAssets.length > 0 && (
+        <AssetBrowserModal
+          assets={availableAssets}
+          onSelectAsset={(asset) => {
+            handleInvestClick(asset);
+            setShowAssetBrowser(false);
+          }}
+          onClose={() => setShowAssetBrowser(false)}
+        />
+      )}
 
       {/* Investment Wizard */}
       {showInvestModal && selectedAsset && wallet && (

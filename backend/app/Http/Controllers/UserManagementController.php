@@ -64,7 +64,7 @@ class UserManagementController extends Controller
         $users = $query->paginate($perPage);
 
         // Add additional user stats
-        $users->getCollection()->transform(function($user) {
+        $users->setCollection($users->getCollection()->map(function($user) {
             return [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -80,7 +80,7 @@ class UserManagementController extends Controller
                 'total_investments' => Token::where('user_id', $user->id)->sum('investment_amount') ?? 0,
                 'total_transactions' => WalletTransaction::where('user_id', $user->id)->count(),
             ];
-        });
+        }));
 
         return response()->json([
             'success' => true,
@@ -149,7 +149,7 @@ class UserManagementController extends Controller
             'password' => 'required|string|min:6',
             'role' => 'required|in:investor,operator,driver,admin',
             'phone' => 'nullable|string|max:20',
-            'kyc_status' => 'nullable|in:pending,approved,rejected',
+            'kyc_status' => 'nullable|in:pending,submitted,verified,rejected',
         ]);
 
         if ($validator->fails()) {
@@ -219,7 +219,7 @@ class UserManagementController extends Controller
             'email' => 'sometimes|email|unique:users,email,' . $id,
             'phone' => 'nullable|string|max:20',
             'role' => 'sometimes|in:investor,operator,driver,admin',
-            'kyc_status' => 'sometimes|in:pending,approved,rejected',
+            'kyc_status' => 'sometimes|in:pending,submitted,verified,rejected',
             'password' => 'sometimes|string|min:6',
         ]);
 

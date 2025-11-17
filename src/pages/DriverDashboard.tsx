@@ -5,9 +5,10 @@ import { RoleCapabilities } from '../components/RoleCapabilities';
 
 interface DriverDashboardProps {
   assets: Asset[];
+  demoMode?: boolean;
 }
 
-export const DriverDashboard: React.FC<DriverDashboardProps> = ({ assets }) => {
+export const DriverDashboard: React.FC<DriverDashboardProps> = ({ assets = [], demoMode = false }) => {
   const [riderData, setRiderData] = useState<Rider | null>(null);
   const [assignedAssets, setAssignedAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +49,10 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({ assets }) => {
     <div className="container-fluid py-4" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
       <div className="d-flex align-items-center justify-content-between mb-4">
         <div>
-          <h1 className="h2 fw-bold mb-1">Driver Dashboard</h1>
+          <div className="d-flex align-items-center gap-2">
+            <h1 className="h2 fw-bold mb-1">Driver Dashboard</h1>
+            {demoMode && <span className="badge bg-warning text-dark" title="Demo Mode active">DEMO</span>}
+          </div>
           <p className="text-muted mb-0">Your vehicles, earnings, and performance</p>
         </div>
         {riderData && (

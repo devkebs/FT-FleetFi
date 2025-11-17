@@ -32,14 +32,27 @@ export const InvestmentWizard: React.FC<InvestmentWizardProps> = ({
 
   // Calculate estimated returns based on investment
   useEffect(() => {
-    const baseMonthlyRevenue = 150000; // Estimated monthly revenue per asset (NGN)
+    // Calculate monthly revenue based on asset type and daily swaps
+    let baseMonthlyRevenue = 150000; // Default fallback
+    
+    if (asset.dailySwaps) {
+      // Revenue per swap varies by asset type
+      const revenuePerSwap = asset.type === 'EV' ? 800 : 
+                            asset.type === 'Battery' ? 500 : 600;
+      // Monthly revenue = daily swaps * revenue per swap * 30 days
+      baseMonthlyRevenue = asset.dailySwaps * revenuePerSwap * 30;
+    } else if (asset.originalValue) {
+      // Alternative: estimate 10% monthly return on asset value
+      baseMonthlyRevenue = asset.originalValue * 0.10;
+    }
+    
     const monthlyReturn = (baseMonthlyRevenue * fractionOwned) / 100;
     const annualReturn = monthlyReturn * 12;
     const roi = investAmount > 0 ? (annualReturn / investAmount) * 100 : 0;
 
     setEstimatedMonthlyReturn(monthlyReturn);
     setEstimatedAnnualROI(roi);
-  }, [fractionOwned, investAmount]);
+  }, [fractionOwned, investAmount, asset]);
 
   const handleNext = () => {
     if (currentStep === 'select') {

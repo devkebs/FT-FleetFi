@@ -47,11 +47,12 @@ export const LiveTelemetryPanel: React.FC = () => {
       }
 
       const data: LiveTelemetryResponse = await res.json();
-      setTelemetry(data.telemetry);
+      setTelemetry(data.telemetry || []);
       setLastUpdate(data.as_of);
       setError(null);
     } catch (err) {
       setError((err as Error).message);
+      setTelemetry([]);
       console.error('Live telemetry fetch error:', err);
     } finally {
       setLoading(false);
@@ -98,7 +99,7 @@ export const LiveTelemetryPanel: React.FC = () => {
     return `${hours}h ago`;
   };
 
-  if (loading && telemetry.length === 0) {
+  if (loading && (!telemetry || telemetry.length === 0)) {
     return (
       <div className="card">
         <div className="card-body text-center py-5">
@@ -120,7 +121,7 @@ export const LiveTelemetryPanel: React.FC = () => {
             Live Fleet Telemetry
           </h5>
           <small className="text-muted">
-            {telemetry.length} active asset{telemetry.length !== 1 ? 's' : ''} reporting
+            {telemetry?.length || 0} active asset{telemetry?.length !== 1 ? 's' : ''} reporting
           </small>
         </div>
         <div>
@@ -158,14 +159,14 @@ export const LiveTelemetryPanel: React.FC = () => {
           </p>
         )}
 
-        {telemetry.length === 0 ? (
+        {!telemetry || telemetry.length === 0 ? (
           <div className="alert alert-info">
             <i className="bi bi-info-circle me-2"></i>
             No active telemetry data in the last 5 minutes. Waiting for OEM updates...
           </div>
         ) : (
           <div className="row g-3">
-            {telemetry.map((item) => (
+            {telemetry?.map((item) => (
               <div className="col-md-6 col-lg-4" key={item.asset_id}>
                 <div className="card border-start border-primary border-3 h-100">
                   <div className="card-body">

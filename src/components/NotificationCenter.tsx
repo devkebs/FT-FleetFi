@@ -197,7 +197,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotifi
             </div>
 
             {/* Actions */}
-            {notifications.length > 0 && unreadCount > 0 && (
+            {notifications?.length > 0 && unreadCount > 0 && (
               <div className="px-3 py-2 bg-light border-bottom">
                 <button
                   className="btn btn-sm btn-link p-0"
@@ -219,14 +219,14 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotifi
                 </div>
               )}
 
-              {!loading && notifications.length === 0 && (
+              {!loading && (!notifications || notifications.length === 0) && (
                 <div className="text-center py-5 text-muted">
                   <i className="bi bi-bell-slash display-4 d-block mb-2"></i>
                   <p>No notifications</p>
                 </div>
               )}
 
-              {!loading && notifications.map(notification => (
+              {!loading && notifications?.map(notification => (
                 <div
                   key={notification.id}
                   className={`p-3 border-bottom position-relative ${

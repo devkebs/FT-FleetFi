@@ -1,0 +1,1107 @@
+{
+  "info": {
+    "name": "FleetFi Complete API Collection",
+    "description": "Complete API collection for FleetFi MVP with all endpoints including Authentication, Assets, Rides, Trovotech Integration, Analytics, and Admin",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "fleetfi-complete-api-2025"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Operator\",\n  \"email\": \"test.operator@fleetfi.com\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\",\n  \"role\": \"operator\"\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/register",
+              "host": ["{{API_URL}}"],
+              "path": ["register"]
+            },
+            "description": "Register a new user. Roles: admin, operator, investor, driver"
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('auth_token', response.token);",
+                  "    pm.environment.set('user_id', response.user.id);",
+                  "    pm.environment.set('user_role', response.user.role);",
+                  "    console.log('Token saved:', response.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"operator1@fleetfi.com\",\n  \"password\": \"operator123\"\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/login",
+              "host": ["{{API_URL}}"],
+              "path": ["login"]
+            },
+            "description": "Login and automatically save token to environment"
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/user",
+              "host": ["{{API_URL}}"],
+              "path": ["user"]
+            },
+            "description": "Get authenticated user details"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/logout",
+              "host": ["{{API_URL}}"],
+              "path": ["logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🚗 Assets",
+      "item": [
+        {
+          "name": "Get All Assets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/assets?page=1&perPage=10",
+              "host": ["{{API_URL}}"],
+              "path": ["assets"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "perPage",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Asset by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/assets/1",
+              "host": ["{{API_URL}}"],
+              "path": ["assets", "1"]
+            }
+          }
+        },
+        {
+          "name": "Create Asset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"EV Test Vehicle\",\n  \"type\": \"EV\",\n  \"model\": \"Innoson IVM Fox\",\n  \"status\": \"Available\",\n  \"location\": \"Lagos\",\n  \"acquisition_cost\": 5000000,\n  \"current_value\": 5000000,\n  \"battery_capacity\": 10,\n  \"soh\": 100,\n  \"odometer\": 0\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/assets",
+              "host": ["{{API_URL}}"],
+              "path": ["assets"]
+            }
+          }
+        },
+        {
+          "name": "Update Asset",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"In Use\",\n  \"odometer\": 150,\n  \"soh\": 98\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/assets/1",
+              "host": ["{{API_URL}}"],
+              "path": ["assets", "1"]
+            }
+          }
+        },
+        {
+          "name": "Delete Asset",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/assets/1",
+              "host": ["{{API_URL}}"],
+              "path": ["assets", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🚕 Rides & Operations",
+      "item": [
+        {
+          "name": "Get All Rides",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/rides?page=1&perPage=10",
+              "host": ["{{API_URL}}"],
+              "path": ["rides"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "perPage",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Riders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/riders",
+              "host": ["{{API_URL}}"],
+              "path": ["riders"]
+            }
+          }
+        },
+        {
+          "name": "Get Schedules",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/schedules",
+              "host": ["{{API_URL}}"],
+              "path": ["schedules"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💰 Revenue & Payouts",
+      "item": [
+        {
+          "name": "Get Revenue Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/revenue/summary",
+              "host": ["{{API_URL}}"],
+              "path": ["revenue", "summary"]
+            }
+          }
+        },
+        {
+          "name": "Get Payouts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/payouts",
+              "host": ["{{API_URL}}"],
+              "path": ["payouts"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔗 Trovotech - Legacy Endpoints",
+      "item": [
+        {
+          "name": "Create Wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/trovotech/wallet/create",
+              "host": ["{{API_URL}}"],
+              "path": ["trovotech", "wallet", "create"]
+            },
+            "description": "Create custodial wallet for investor"
+          }
+        },
+        {
+          "name": "Get Wallet",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/trovotech/wallet",
+              "host": ["{{API_URL}}"],
+              "path": ["trovotech", "wallet"]
+            }
+          }
+        },
+        {
+          "name": "Mint Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assetId\": \"EV-001\",\n  \"assetType\": \"EV\",\n  \"fractionOwned\": 10,\n  \"investAmount\": 500000,\n  \"investorWallet\": \"WALLET_ADDRESS_HERE\"\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/trovotech/token/mint",
+              "host": ["{{API_URL}}"],
+              "path": ["trovotech", "token", "mint"]
+            },
+            "description": "Mint fractional ownership token (ERC-1155 equivalent)"
+          }
+        },
+        {
+          "name": "Get My Tokens",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/trovotech/tokens/my",
+              "host": ["{{API_URL}}"],
+              "path": ["trovotech", "tokens", "my"]
+            }
+          }
+        },
+        {
+          "name": "Get Asset Metadata",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/trovotech/asset/EV-001/metadata",
+              "host": ["{{API_URL}}"],
+              "path": ["trovotech", "asset", "EV-001", "metadata"]
+            }
+          }
+        },
+        {
+          "name": "Initiate Payout (Operator Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tokenIds\": [\"token_001\", \"token_002\"],\n  \"totalRevenue\": 1000000,\n  \"period\": \"2025-11\",\n  \"description\": \"November revenue distribution\"\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/trovotech/payout/initiate",
+              "host": ["{{API_URL}}"],
+              "path": ["trovotech", "payout", "initiate"]
+            }
+          }
+        },
+        {
+          "name": "Sync Telemetry (Operator Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assetId\": \"EV-001\",\n  \"batteryLevel\": 85,\n  \"kilometers\": 1250,\n  \"status\": \"in_transit\",\n  \"location\": {\n    \"lat\": 6.5244,\n    \"lng\": 3.3792\n  },\n  \"timestamp\": \"2025-11-16T10:30:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/trovotech/telemetry/sync",
+              "host": ["{{API_URL}}"],
+              "path": ["trovotech", "telemetry", "sync"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔗 Trovotech - Official API v1",
+      "item": [
+        {
+          "name": "Onboard User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"08012345678\",\n  \"mobile_country_code\": \"+234\",\n  \"referrer\": \"fleetfi_platform\"\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/trovotech/users/onboard",
+              "host": ["{{API_URL}}"],
+              "path": ["trovotech", "users", "onboard"]
+            },
+            "description": "Create Trovotech profile and wallet for user"
+          }
+        },
+        {
+          "name": "Get User Wallet",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/trovotech/users/wallet",
+              "host": ["{{API_URL}}"],
+              "path": ["trovotech", "users", "wallet"]
+            }
+          }
+        },
+        {
+          "name": "Update KYC (Admin/Operator)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 5,\n  \"kyc_level\": 2,\n  \"kyc_data\": {\n    \"verified_by\": \"IdentityPass\",\n    \"verification_date\": \"2025-11-16\",\n    \"document_type\": \"NIN\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/trovotech/users/kyc/update",
+              "host": ["{{API_URL}}"],
+              "path": ["trovotech", "users", "kyc", "update"]
+            }
+          }
+        },
+        {
+          "name": "Get Keypair Instructions",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/trovotech/users/keypair-instructions",
+              "host": ["{{API_URL}}"],
+              "path": ["trovotech", "users", "keypair-instructions"]
+            },
+            "description": "Public endpoint - no auth required"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Analytics",
+      "item": [
+        {
+          "name": "Track Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_name\": \"button_click\",\n  \"event_category\": \"navigation\",\n  \"event_value\": \"dashboard_tab\",\n  \"page_url\": \"/dashboard\",\n  \"metadata\": {\n    \"button_label\": \"View Assets\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/analytics/event",
+              "host": ["{{API_URL}}"],
+              "path": ["analytics", "event"]
+            }
+          }
+        },
+        {
+          "name": "Start Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_agent\": \"Mozilla/5.0...\",\n  \"ip_address\": \"102.89.34.120\",\n  \"device_type\": \"desktop\"\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/analytics/session/start",
+              "host": ["{{API_URL}}"],
+              "path": ["analytics", "session", "start"]
+            }
+          }
+        },
+        {
+          "name": "Submit Feedback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"feedback_type\": \"feature_request\",\n  \"message\": \"Add dark mode support\",\n  \"rating\": 5,\n  \"page_url\": \"/settings\"\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/analytics/feedback",
+              "host": ["{{API_URL}}"],
+              "path": ["analytics", "feedback"]
+            }
+          }
+        },
+        {
+          "name": "Get Dashboard (Admin Only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/analytics/dashboard",
+              "host": ["{{API_URL}}"],
+              "path": ["analytics", "dashboard"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔔 Notifications",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/notifications?unread_only=true",
+              "host": ["{{API_URL}}"],
+              "path": ["notifications"],
+              "query": [
+                {
+                  "key": "unread_only",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark as Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/notifications/1/read",
+              "host": ["{{API_URL}}"],
+              "path": ["notifications", "1", "read"]
+            }
+          }
+        },
+        {
+          "name": "Mark All as Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/notifications/read-all",
+              "host": ["{{API_URL}}"],
+              "path": ["notifications", "read-all"]
+            }
+          }
+        },
+        {
+          "name": "Delete Notification",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/notifications/1",
+              "host": ["{{API_URL}}"],
+              "path": ["notifications", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👑 Admin - User Management",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/admin/users?page=1&perPage=10&role=operator",
+              "host": ["{{API_URL}}"],
+              "path": ["admin", "users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "perPage",
+                  "value": "10"
+                },
+                {
+                  "key": "role",
+                  "value": "operator"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Driver\",\n  \"email\": \"driver.new@fleetfi.com\",\n  \"password\": \"driver123\",\n  \"role\": \"driver\",\n  \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/admin/users",
+              "host": ["{{API_URL}}"],
+              "path": ["admin", "users"]
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"status\": \"inactive\"\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/admin/users/5",
+              "host": ["{{API_URL}}"],
+              "path": ["admin", "users", "5"]
+            }
+          }
+        },
+        {
+          "name": "Toggle User Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/admin/users/5/toggle-status",
+              "host": ["{{API_URL}}"],
+              "path": ["admin", "users", "5", "toggle-status"]
+            }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"newpassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/admin/users/5/reset-password",
+              "host": ["{{API_URL}}"],
+              "path": ["admin", "users", "5", "reset-password"]
+            }
+          }
+        },
+        {
+          "name": "Bulk Action",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"activate\",\n  \"user_ids\": [5, 6, 7]\n}"
+            },
+            "url": {
+              "raw": "{{API_URL}}/admin/users/bulk-action",
+              "host": ["{{API_URL}}"],
+              "path": ["admin", "users", "bulk-action"]
+            },
+            "description": "Actions: activate, deactivate, delete"
+          }
+        },
+        {
+          "name": "Export Users CSV",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/csv"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/admin/users/export/csv?role=operator",
+              "host": ["{{API_URL}}"],
+              "path": ["admin", "users", "export", "csv"],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "operator"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👑 Admin - Trovotech Status",
+      "item": [
+        {
+          "name": "Get Trovotech Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/trovotech/status",
+              "host": ["{{API_URL}}"],
+              "path": ["trovotech", "status"]
+            }
+          }
+        },
+        {
+          "name": "Test Trovotech Connection",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/trovotech/test-connection",
+              "host": ["{{API_URL}}"],
+              "path": ["trovotech", "test-connection"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📡 Telemetry",
+      "item": [
+        {
+          "name": "Get Live Telemetry",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/telemetry/live",
+              "host": ["{{API_URL}}"],
+              "path": ["telemetry", "live"]
+            }
+          }
+        },
+        {
+          "name": "Get Telemetry History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/telemetry?asset_id=EV-001&start_date=2025-11-01&end_date=2025-11-16",
+              "host": ["{{API_URL}}"],
+              "path": ["telemetry"],
+              "query": [
+                {
+                  "key": "asset_id",
+                  "value": "EV-001"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2025-11-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2025-11-16"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏥 Health & Config",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/health",
+              "host": ["{{API_URL}}"],
+              "path": ["health"]
+            },
+            "description": "Public endpoint - no auth required"
+          }
+        },
+        {
+          "name": "Get Capabilities",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{API_URL}}/capabilities",
+              "host": ["{{API_URL}}"],
+              "path": ["capabilities"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "API_URL",
+      "value": "http://127.0.0.1:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_role",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

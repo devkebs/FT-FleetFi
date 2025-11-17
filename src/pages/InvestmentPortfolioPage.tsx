@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { api } from '../services/api';
+import { apiClient } from '../services/api';
 
 interface Investment {
   id: number;
@@ -39,7 +39,7 @@ export default function InvestmentPortfolioPage() {
   const fetchPortfolio = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/investments');
+      const response = await apiClient.get<{ data: { investments: Investment[], summary: PortfolioSummary } }>('/investments');
       setInvestments(response.data.investments);
       setSummary(response.data.summary);
     } catch (error) {

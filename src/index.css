@@ -34,6 +34,13 @@ body {
   color: #212529;
   min-width: 320px;
   min-height: 100vh;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+}
+
+html {
+  overflow-y: auto !important;
+  overflow-x: hidden;
 }
 
 .text-brand-charcoal { color: var(--brand-charcoal) !important; }

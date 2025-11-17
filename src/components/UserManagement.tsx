@@ -6,7 +6,7 @@ interface User {
   email: string;
   phone: string | null;
   role: 'admin' | 'operator' | 'investor' | 'driver';
-  kyc_status: 'pending' | 'approved' | 'rejected';
+  kyc_status: 'pending' | 'submitted' | 'verified' | 'rejected';
   is_active: boolean;
   created_at: string;
   wallet_balance: number;
@@ -286,7 +286,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
   const getKycBadgeClass = (status: string) => {
     const classes: Record<string, string> = {
-      approved: 'success',
+      verified: 'success',
+      submitted: 'info',
       pending: 'warning',
       rejected: 'danger',
     };
@@ -342,8 +343,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-center">
                   <div>
-                    <h6 className="text-muted mb-0">KYC Approved</h6>
-                    <h3 className="mb-0 mt-2 text-info">{stats.by_kyc.approved || 0}</h3>
+                    <h6 className="text-muted mb-0">KYC Verified</h6>
+                    <h3 className="mb-0 mt-2 text-info">{stats.by_kyc.verified || 0}</h3>
                   </div>
                   <i className="bi bi-shield-check fs-1 text-info opacity-25"></i>
                 </div>
@@ -403,7 +404,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 }}
               >
                 <option value="all">All KYC</option>
-                <option value="approved">Approved</option>
+                <option value="submitted">Submitted</option>
+                <option value="verified">Verified</option>
                 <option value="pending">Pending</option>
                 <option value="rejected">Rejected</option>
               </select>

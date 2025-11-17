@@ -15,9 +15,10 @@ interface OperatorDashboardProps {
   onChangePage?: (page: number) => void;
   kycStatus?: 'pending' | 'submitted' | 'verified' | 'rejected';
   onOpenKyc?: () => void;
+  demoMode?: boolean;
 }
 
-export const OperatorDashboard: React.FC<OperatorDashboardProps> = ({ assets, onSimulateSwap, onSimulateCharge, onUpdateStatus, page = 1, totalPages = 1, onChangePage, kycStatus = 'pending', onOpenKyc }) => {
+export const OperatorDashboard: React.FC<OperatorDashboardProps> = ({ assets = [], onSimulateSwap, onSimulateCharge, onUpdateStatus, page = 1, totalPages = 1, onChangePage, kycStatus = 'pending', onOpenKyc, demoMode = false }) => {
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [riders, setRiders] = useState<Rider[]>([]);
@@ -45,11 +46,11 @@ export const OperatorDashboard: React.FC<OperatorDashboardProps> = ({ assets, on
     (async()=>{
       try { const data = await fetchRiders(); setRiders(data as any); } catch(e){ console.warn('Failed to load riders', e); }
       try { const s = await fetchSchedules(); setSchedules(s); } catch(e){ console.warn('Failed to load schedules', e); }
-      try { const tokens = await getMyTokens(); setTokenCount(tokens.length); } catch(e){ console.warn('Failed to load tokens', e); }
+      try { const tokens = await getMyTokens(); setTokenCount(tokens?.length || 0); } catch(e){ console.warn('Failed to load tokens', e); }
       try { 
         setLoadingRides(true);
         const ridesData = await fetchRides(10); 
-        setRides(ridesData.rides); 
+        setRides(ridesData?.rides || []); 
       } catch(e){ 
         console.warn('Failed to load rides', e); 
       } finally {
@@ -63,7 +64,7 @@ export const OperatorDashboard: React.FC<OperatorDashboardProps> = ({ assets, on
       setInitiatingPayout(true);
       // Get all tokens to distribute to - in production, backend would fetch all tokens
       const allTokens = await getMyTokens();
-      if (allTokens.length === 0) {
+      if (!allTokens || allTokens.length === 0) {
         window.dispatchEvent(new CustomEvent('app:toast', { 
           detail: { type: 'warning', title: 'No Tokens', message: 'No tokenized assets to distribute revenue to' } 
         }));
@@ -115,7 +116,10 @@ export const OperatorDashboard: React.FC<OperatorDashboardProps> = ({ assets, on
     <div className="container-fluid py-4">
       <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
         <div>
-          <h1 className="h2 fw-bold mb-1">Fleet Operations</h1>
+          <div className="d-flex align-items-center gap-2">
+            <h1 className="h2 fw-bold mb-1">Fleet Operations</h1>
+            {demoMode && <span className="badge bg-warning text-dark" title="Demo Mode active">DEMO</span>}
+          </div>
           <p className="text-muted mb-0">Real-time operational overview & controls</p>
         </div>
         <div className="btn-group">
