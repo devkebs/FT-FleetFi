@@ -1,44 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { getStoredToken } from '../services/api';
-
-interface ChainSummary {
-  chain: string;
-  count: number;
-  total_investment: number;
-  total_current_value: number;
-  total_returns: number;
-  roi_percent: number;
-}
-
-interface PortfolioToken {
-  id: number;
-  token_id: string;
-  asset_id: number;
-  asset_model: string | null;
-  fraction_owned: number;
-  investment_amount: number;
-  current_value: number;
-  total_returns: number;
-  status: string;
-  chain: string | null;
-  minted_at: string | null;
-  tx_hash: string | null;
-}
-
-interface PortfolioData {
-  overall: {
-    total_tokens: number;
-    total_investment: number;
-    total_current_value: number;
-    total_returns: number;
-    roi_percent: number;
-  };
-  by_chain: ChainSummary[];
-  tokens: PortfolioToken[];
-}
+import { InvestmentAPI, PortfolioSummary as PortfolioSummaryType, InvestmentRecord } from '../services/api';
 
 export const PortfolioSummary: React.FC = () => {
-  const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
+  const [portfolio, setPortfolio] = useState<PortfolioSummaryType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,23 +13,15 @@ export const PortfolioSummary: React.FC = () => {
   const fetchPortfolio = async () => {
     try {
       setLoading(true);
-      const token = getStoredToken();
-      if (!token) {
-        throw new Error('Not authenticated');
-      }
-      const response = await fetch('http://localhost:8000/api/tokens/portfolio', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch portfolio');
-      }
-      const data = await response.json();
+      setError(null);
+      const data = await InvestmentAPI.getPortfolio();
       setPortfolio(data);
-    } catch (err) {
-      setError((err as Error).message);
+    } catch (err: any) {
+      if (err?.status === 401) {
+        setError('Session expired. Please login again.');
+      } else {
+        setError(err?.message || 'Failed to fetch portfolio');
+      }
       console.error('Portfolio fetch error:', err);
     } finally {
       setLoading(false);
@@ -94,7 +50,7 @@ export const PortfolioSummary: React.FC = () => {
     );
   }
 
-  if (!portfolio || !portfolio.overall) {
+  if (!portfolio) {
     return (
       <div className="alert alert-info border-0 shadow-sm">
         <i className="bi bi-info-circle me-2"></i>
@@ -103,39 +59,80 @@ export const PortfolioSummary: React.FC = () => {
     );
   }
 
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const getAssetTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      vehicle: 'E-Keke',
+      battery: 'Battery',
+      charging_cabinet: 'Cabinet',
+    };
+    return labels[type] || type;
+  };
+
+  const getAssetTypeIcon = (type: string) => {
+    const icons: Record<string, string> = {
+      vehicle: 'bi-truck',
+      battery: 'bi-battery-charging',
+      charging_cabinet: 'bi-lightning-charge',
+    };
+    return icons[type] || 'bi-box';
+  };
+
+  const getRiskBadgeClass = (risk: string) => {
+    const classes: Record<string, string> = {
+      low: 'bg-success',
+      medium: 'bg-warning text-dark',
+      high: 'bg-danger',
+    };
+    return classes[risk] || 'bg-secondary';
+  };
+
   return (
     <div>
       {/* Overall Metrics */}
       <div className="card shadow-sm mb-4 border-0">
         <div className="card-header bg-gradient text-white" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-          <h5 className="mb-0"><i className="bi bi-bar-chart-line me-2"></i>Portfolio Summary</h5>
+          <div className="d-flex justify-content-between align-items-center">
+            <h5 className="mb-0"><i className="bi bi-bar-chart-line me-2"></i>Portfolio Summary</h5>
+            <button className="btn btn-sm btn-light" onClick={fetchPortfolio}>
+              <i className="bi bi-arrow-clockwise"></i>
+            </button>
+          </div>
         </div>
         <div className="card-body">
           <div className="row g-3">
             <div className="col-md-3">
               <div className="d-flex flex-column">
-                <span className="text-muted small">Total Tokens</span>
-                <span className="fs-4 fw-bold text-primary">{portfolio.overall.total_tokens || 0}</span>
+                <span className="text-muted small">Active Investments</span>
+                <span className="fs-4 fw-bold text-primary">{portfolio.active_investments || 0}</span>
               </div>
             </div>
             <div className="col-md-3">
               <div className="d-flex flex-column">
-                <span className="text-muted small">Total Investment</span>
-                <span className="fs-4 fw-bold text-success">₦{(portfolio.overall.total_investment || 0).toLocaleString()}</span>
+                <span className="text-muted small">Total Invested</span>
+                <span className="fs-4 fw-bold text-success">{formatCurrency(portfolio.total_invested || 0)}</span>
               </div>
             </div>
             <div className="col-md-3">
               <div className="d-flex flex-column">
                 <span className="text-muted small">Current Value</span>
-                <span className="fs-4 fw-bold text-info">₦{(portfolio.overall.total_current_value || 0).toLocaleString()}</span>
+                <span className="fs-4 fw-bold text-info">{formatCurrency(portfolio.current_value || 0)}</span>
               </div>
             </div>
             <div className="col-md-3">
               <div className="d-flex flex-column">
-                <span className="text-muted small">Total Returns</span>
-                <span className="fs-4 fw-bold text-warning">₦{(portfolio.overall.total_returns || 0).toLocaleString()}</span>
-                <span className={`badge ${(portfolio.overall.roi_percent || 0) >= 0 ? 'bg-success' : 'bg-danger'} mt-1`}>
-                  ROI: {(portfolio.overall.roi_percent || 0).toFixed(2)}%
+                <span className="text-muted small">Total Earnings</span>
+                <span className="fs-4 fw-bold text-warning">{formatCurrency(portfolio.total_earnings || 0)}</span>
+                <span className={`badge ${(portfolio.total_roi_percent || 0) >= 0 ? 'bg-success' : 'bg-danger'} mt-1`} style={{ width: 'fit-content' }}>
+                  ROI: {(portfolio.total_roi_percent || 0).toFixed(2)}%
                 </span>
               </div>
             </div>
@@ -143,92 +140,84 @@ export const PortfolioSummary: React.FC = () => {
         </div>
       </div>
 
-      {/* By Chain Breakdown */}
-      {portfolio.by_chain && portfolio.by_chain.length > 0 && (
-        <div className="card shadow-sm mb-4 border-0">
-          <div className="card-header bg-white border-bottom">
-            <h5 className="mb-0"><i className="bi bi-diagram-3 me-2 text-primary"></i>By Blockchain</h5>
-          </div>
-          <div className="card-body">
-            <div className="row g-3">
-              {portfolio.by_chain.map((chain) => (
-                <div className="col-md-4" key={chain.chain}>
-                  <div className="card h-100 border">
-                    <div className="card-body">
-                      <div className="d-flex justify-content-between align-items-start mb-2">
-                        <span className="badge bg-dark text-uppercase">{chain.chain || 'Unknown'}</span>
-                        <span className="badge bg-secondary">{chain.count} tokens</span>
-                      </div>
-                      <div className="mb-2">
-                        <small className="text-muted">Investment</small>
-                        <div className="fw-bold">₦{(Number(chain.total_investment) || 0).toLocaleString()}</div>
-                      </div>
-                      <div className="mb-2">
-                        <small className="text-muted">Returns</small>
-                        <div className="fw-bold text-success">₦{(Number(chain.total_returns) || 0).toLocaleString()}</div>
-                      </div>
-                      <div>
-                        <span className={`badge ${chain.roi_percent >= 0 ? 'bg-success' : 'bg-danger'}`}>
-                          ROI: {chain.roi_percent}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Token Details Table */}
+      {/* Investment Details Table */}
       <div className="card shadow-sm border-0">
         <div className="card-header bg-white border-bottom">
-          <h5 className="mb-0"><i className="bi bi-list-ul me-2 text-success"></i>Token Details</h5>
+          <h5 className="mb-0"><i className="bi bi-list-ul me-2 text-success"></i>Investment Details</h5>
         </div>
         <div className="card-body">
-          {!portfolio.tokens || portfolio.tokens.length === 0 ? (
+          {!portfolio.investments || portfolio.investments.length === 0 ? (
             <div className="text-center py-4">
               <i className="bi bi-inbox display-4 text-muted"></i>
-              <p className="text-muted mt-3">No tokens in portfolio</p>
+              <p className="text-muted mt-3">No investments in portfolio yet</p>
+              <p className="small text-muted">Browse available assets to start investing</p>
             </div>
           ) : (
             <div className="table-responsive">
               <table className="table table-hover">
                 <thead>
                   <tr>
-                    <th>Token ID</th>
                     <th>Asset</th>
-                    <th>Chain</th>
+                    <th>Type</th>
                     <th>Ownership</th>
-                    <th>Investment</th>
+                    <th>Invested</th>
                     <th>Current Value</th>
-                    <th>Returns</th>
-                    <th>Minted</th>
+                    <th>Earnings</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {portfolio.tokens.map((token) => (
-                    <tr key={token.id}>
-                      <td className="font-monospace small">{token.token_id}</td>
-                      <td>
-                        <div className="fw-bold">{token.asset_model || 'N/A'}</div>
-                        <small className="text-muted">Asset #{token.asset_id}</small>
-                      </td>
-                      <td>
-                        <span className="badge bg-dark text-uppercase">{token.chain || 'N/A'}</span>
-                      </td>
-                      <td>
-                        <span className="badge bg-primary">{token.fraction_owned}%</span>
-                      </td>
-                      <td className="text-success">₦{(Number(token.investment_amount) || 0).toLocaleString()}</td>
-                      <td className="text-info">₦{(Number(token.current_value) || 0).toLocaleString()}</td>
-                      <td className="text-warning fw-bold">₦{(Number(token.total_returns) || 0).toLocaleString()}</td>
-                      <td className="small text-muted">
-                        {token.minted_at ? new Date(token.minted_at).toLocaleDateString() : '-'}
-                      </td>
-                    </tr>
-                  ))}
+                  {portfolio.investments.map((investment: InvestmentRecord) => {
+                    const asset = investment.asset;
+                    const roi = investment.purchase_price > 0
+                      ? ((investment.current_value - investment.purchase_price) / investment.purchase_price * 100)
+                      : 0;
+
+                    return (
+                      <tr key={investment.id}>
+                        <td>
+                          <div className="d-flex align-items-center">
+                            <i className={`bi ${getAssetTypeIcon(asset?.type || '')} fs-4 text-primary me-2`}></i>
+                            <div>
+                              <div className="fw-bold">{asset?.model || 'Unknown Asset'}</div>
+                              <small className="text-muted">{asset?.asset_id || `ID: ${investment.asset_id}`}</small>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="badge bg-secondary">
+                            {getAssetTypeLabel(asset?.type || '')}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="badge bg-primary fs-6">
+                            {investment.ownership_percentage}%
+                          </span>
+                        </td>
+                        <td className="text-success fw-bold">
+                          {formatCurrency(investment.amount)}
+                        </td>
+                        <td>
+                          <div>{formatCurrency(investment.current_value)}</div>
+                          <small className={roi >= 0 ? 'text-success' : 'text-danger'}>
+                            {roi >= 0 ? '+' : ''}{roi.toFixed(1)}%
+                          </small>
+                        </td>
+                        <td className="text-warning fw-bold">
+                          {formatCurrency(investment.total_earnings)}
+                        </td>
+                        <td>
+                          <span className={`badge ${
+                            investment.status === 'active' ? 'bg-success' :
+                            investment.status === 'pending' ? 'bg-warning text-dark' :
+                            investment.status === 'sold' ? 'bg-secondary' : 'bg-danger'
+                          }`}>
+                            {investment.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

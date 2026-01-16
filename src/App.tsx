@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { Page, Asset, Token, Payout, SLXListing, Pagination } from '../types';
+import { Page, Asset, Token, Payout, SLXListing, Pagination } from './types';
 import { initialTokens, initialPayouts, initialSLXListings, initialAssets } from './services/mockData';
 import { Header } from './components/Header';
-import { LandingPage } from './pages/LandingPage';
+import LandingPage from './pages/LandingPage';
 import { fetchAssets, getCurrentUser, logout } from './services/api';
 import { ToastProvider } from './components/ToastProvider';
 import { AuthModal } from './components/AuthModal';
@@ -16,6 +16,7 @@ import { ConnectivityBanner } from './components/ConnectivityBanner';
 
 // Lazy load heavy dashboard components for better initial load
 const AboutPage = lazy(() => import('./pages/AboutPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
 const InvestorDashboard = lazy(() => import('./pages/InvestorDashboard').then(m => ({ default: m.InvestorDashboard })));
 const OperatorDashboard = lazy(() => import('./pages/OperatorDashboard').then(m => ({ default: m.OperatorDashboard })));
 const DriverDashboard = lazy(() => import('./pages/DriverDashboard').then(m => ({ default: m.DriverDashboard })));
@@ -73,16 +74,17 @@ const App: React.FC = () => {
 
 
   // Role-based page permission
+  const publicPages = [Page.Landing, Page.About, Page.Contact, Page.ESGImpact]; // Accessible to all without login
   const pageAllowed = (role: 'investor'|'operator'|'driver'|'admin', page: Page): boolean => {
     const investorPages = [Page.InvestorDashboard, Page.SLXMarketplace];
     const operatorPages = [Page.OperatorDashboard, Page.Riders];
     const driverPages: Page[] = [Page.DriverDashboard];
-  const adminPages: Page[] = [Page.AdminDashboard];
+    const adminPages: Page[] = [Page.AdminDashboard];
     if (investorPages.includes(page)) return role === 'investor';
     if (operatorPages.includes(page)) return role === 'operator';
     if (driverPages.includes(page)) return role === 'driver';
     if (adminPages.includes(page)) return role === 'admin';
-    return true; // Landing, ESGImpact
+    return true; // Public pages return true
   };
 
   const emitToast = (type: string, title: string, message: string) => {
@@ -90,6 +92,17 @@ const App: React.FC = () => {
   };
 
   const handleNavigate = (page: Page) => {
+    // Check if page is public (accessible without authentication)
+    if (publicPages.includes(page)) {
+      trackEvent('page_view', { 
+        from_page: Page[currentPage], 
+        to_page: Page[page],
+        role: userRole 
+      });
+      setCurrentPage(page);
+      return;
+    }
+    
     // Check if user is trying to access protected pages
     const investorPages = [Page.InvestorDashboard, Page.SLXMarketplace];
     const operatorPages = [Page.OperatorDashboard, Page.Riders];
@@ -286,11 +299,17 @@ const App: React.FC = () => {
   const renderPage = () => {
     switch (currentPage) {
       case Page.Landing:
-        return <LandingPage onNavigate={handleNavigate} demoMode={demoMode} onToggleDemo={() => demoMode ? disableDemoMode() : enableDemoMode()} />;
+        return <LandingPage onLogin={() => setShowAuth(true)} onRegister={() => setShowRegister(true)} onAdminLogin={() => setCurrentPage(Page.AdminLogin)} />;
       case Page.About:
         return (
           <Suspense fallback={<PageLoader />}>
             <AboutPage onNavigate={handleNavigate} />
+          </Suspense>
+        );
+      case Page.Contact:
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <ContactPage onNavigate={handleNavigate} />
           </Suspense>
         );
       case Page.InvestorDashboard:
@@ -316,7 +335,7 @@ const App: React.FC = () => {
       case Page.DriverDashboard:
         return (
           <Suspense fallback={<PageLoader />}>
-            <DriverDashboard demoMode={demoMode} assets={assets} />
+            <DriverDashboard demoMode={demoMode} />
           </Suspense>
         );
       case Page.AdminLogin:
@@ -366,48 +385,51 @@ const App: React.FC = () => {
           </Suspense>
         );
       default:
-        return <LandingPage onNavigate={handleNavigate} />;
+        return <LandingPage onLogin={() => setShowAuth(true)} onRegister={() => setShowRegister(true)} onAdminLogin={() => setCurrentPage(Page.AdminLogin)} />;
     }
   };
 
   // Guard: if current page becomes invalid after role change, show landing
   if (!pageAllowed(userRole, currentPage)) {
-    return <LandingPage onNavigate={handleNavigate} />;
+    return <LandingPage onLogin={() => setShowAuth(true)} onRegister={() => setShowRegister(true)} onAdminLogin={() => setCurrentPage(Page.AdminLogin)} />;
   }
+
+  // Hide App Header on Landing page (it has its own navigation)
+  const showAppHeader = currentPage !== Page.Landing;
 
   return (
     <ToastProvider>
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: currentPage === Page.Landing ? 'transparent' : '#f8f9fa' }}>
       <ConnectivityBanner />
-      <Header 
-        currentPage={currentPage} 
-        onPageChange={handleNavigate}
-        userRole={userRole}
-        isAuthenticated={isAuthenticated}
-        userName={userName}
-        kycStatus={kycStatus}
-        demoMode={demoMode}
-        onLogin={() => { setShowAuth(true); setShowRegister(false); }}
-        onRegister={() => { setShowRegister(true); setShowAuth(false); }}
-        onLogout={async () => { 
-          try { 
-            // Track logout event
-            trackEvent('logout', { role: userRole, user_name: userName });
-            
-            await logout(); 
-            setIsAuthenticated(false); 
-            setUserName(undefined); 
-            sessionStorage.removeItem('auth_checked'); // Clear auth check flag
-            emitToast('success', 'Signed out', 'You have been logged out.'); 
-            setCurrentPage(Page.Landing);
-          } catch(e){ 
-            emitToast('danger', 'Logout failed', (e as any).message || 'Error'); 
-          }
-        }}
-      />
-      <main>
-        {renderPage()}
-      </main>
+      {showAppHeader && (
+        <Header
+          currentPage={currentPage}
+          onPageChange={handleNavigate}
+          userRole={userRole}
+          isAuthenticated={isAuthenticated}
+          userName={userName}
+          kycStatus={kycStatus}
+          demoMode={demoMode}
+          onLogin={() => { setShowAuth(true); setShowRegister(false); }}
+          onRegister={() => { setShowRegister(true); setShowAuth(false); }}
+          onLogout={async () => {
+            try {
+              // Track logout event
+              trackEvent('logout', { role: userRole, user_name: userName });
+
+              await logout();
+              setIsAuthenticated(false);
+              setUserName(undefined);
+              sessionStorage.removeItem('auth_checked'); // Clear auth check flag
+              emitToast('success', 'Signed out', 'You have been logged out.');
+              setCurrentPage(Page.Landing);
+            } catch(e){
+              emitToast('danger', 'Logout failed', (e as any).message || 'Error');
+            }
+          }}
+        />
+      )}
+      {currentPage === Page.Landing ? renderPage() : <main>{renderPage()}</main>}
       <AuthModal 
         show={showAuth} 
         onClose={() => {

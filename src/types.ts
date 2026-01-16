@@ -2,6 +2,7 @@
 export enum Page {
   Landing,
   About,
+  Contact,
   InvestorDashboard,
   OperatorDashboard,
   DriverDashboard,

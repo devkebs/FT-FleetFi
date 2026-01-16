@@ -1,556 +1,628 @@
 import React, { useState, useEffect } from 'react';
-import { Page } from '../types';
+import './LandingPage.css';
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+interface FormData {
+  name: string;
+  email: string;
+  phone: string;
+  company: string;
+  interest: string;
+  message: string;
+}
+
+interface StatCardProps {
+  value: string;
+  label: string;
+}
+
+interface FeatureCardProps {
+  icon: string;
+  title: string;
+  description: string;
+}
+
+interface StepCardProps {
+  number: string;
+  title: string;
+  description: string;
+}
+
+// ============================================================================
+// CHILD COMPONENTS
+// ============================================================================
+
+const StatCard: React.FC<StatCardProps> = ({ value, label }) => (
+  <div className="stat-box">
+    <div className="stat-value">{value}</div>
+    <div className="stat-label">{label}</div>
+  </div>
+);
+
+const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description }) => (
+  <div className="feature-card">
+    <div className="card-icon">{icon}</div>
+    <h3 className="card-title">{title}</h3>
+    <p className="card-text">{description}</p>
+  </div>
+);
+
+const StepCard: React.FC<StepCardProps> = ({ number, title, description }) => (
+  <div className="step-card">
+    <div className="step-number">{number}</div>
+    <h3 className="step-title">{title}</h3>
+    <p className="step-text">{description}</p>
+  </div>
+);
+
+// ============================================================================
+// MAIN LANDING PAGE COMPONENT
+// ============================================================================
 
 interface LandingPageProps {
-  onNavigate: (page: Page) => void;
-  demoMode?: boolean;
-  onToggleDemo?: () => void;
+  onLogin?: () => void;
+  onRegister?: () => void;
+  onAdminLogin?: () => void;
 }
 
-interface LiveMetrics {
-  totalRevenue: number;
-  totalRides: number;
-  activeVehicles: number;
-  totalInvestors: number;
-}
+const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister, onAdminLogin }) => {
+  // ========== STATE MANAGEMENT ==========
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('fleetfi-theme') as 'light' | 'dark') || 'light';
+    }
+    return 'light';
+  });
+  
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [formData, setFormData] = useState<FormData>({
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    interest: 'partnership',
+    message: ''
+  });
+  const [formStatus, setFormStatus] = useState<{ type: string; message: string }>({ 
+    type: '', 
+    message: '' 
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, demoMode = false, onToggleDemo }) => {
-  const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
-  const [liveMetrics, setLiveMetrics] = useState<LiveMetrics | null>(null);
-  const [activeTab, setActiveTab] = useState<'investor' | 'operator' | 'driver'>('investor');
+  // ========== CONFIGURATION ==========
+  const config = {
+    whatsappNumber: '2347049195225',
+    whatsappMessage: 'Hello FleetFi! I would like to learn more about your electric mobility solutions.',
+    web3FormsKey: '59d41e61-ef15-49ac-9eef-0a42288ee17d'
+  };
 
+  // ========== EFFECTS ==========
   useEffect(() => {
-    // Check backend connectivity - 401 is expected when not logged in
-    fetch('http://localhost:8000/api/user', {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    })
-      .then((response) => {
-        // Backend is online if we get any response (200 or 401)
-        if (response.status === 200 || response.status === 401) {
-          setBackendStatus('online');
-          // Fetch live metrics
-          fetchLiveMetrics();
-        } else {
-          setBackendStatus('offline');
-        }
-      })
-      .catch(() => setBackendStatus('offline'));
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const fetchLiveMetrics = async () => {
-    try {
-      // Fetch revenue summary - 401 is expected when not logged in
-      const response = await fetch('http://localhost:8000/api/revenue/summary', {
-        headers: { 'Accept': 'application/json' }
-      });
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('fleetfi-theme', theme);
+  }, [theme]);
+
+  // ========== HANDLERS ==========
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
+  const scrollTo = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      const offset = 80;
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
       
-      if (response.ok) {
-        const data = await response.json();
-        setLiveMetrics({
-          totalRevenue: data.total_revenue || 0,
-          totalRides: data.total_rides || 0,
-          activeVehicles: 40, // From seeded data
-          totalInvestors: 450 // Projected
-        });
-      }
-      // Silently ignore 401 errors - user is not logged in yet
-    } catch (error) {
-      // Only log network errors, not auth errors
-      if (!(error instanceof TypeError && error.message.includes('Failed to fetch'))) {
-        console.warn('Failed to fetch live metrics:', error);
-      }
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
     }
   };
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setFormStatus({ type: '', message: '' });
+
+    try {
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          access_key: config.web3FormsKey,
+          subject: `FleetFi Contact: ${formData.name}`,
+          from_name: 'FleetFi Website',
+          ...formData
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setFormStatus({
+          type: 'success',
+          message: '✅ Thank you! Your message has been sent. We\'ll get back to you within 24 hours.'
+        });
+        
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          company: '',
+          interest: 'partnership',
+          message: ''
+        });
+
+        setTimeout(() => {
+          setFormStatus({ type: '', message: '' });
+        }, 8000);
+      } else {
+        throw new Error('Submission failed');
+      }
+    } catch (error) {
+      setFormStatus({
+        type: 'error',
+        message: '❌ Oops! Something went wrong. Please email us at partnerships@freenergy.tech'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openWhatsApp = () => {
+    const url = `https://wa.me/${config.whatsappNumber}?text=${encodeURIComponent(config.whatsappMessage)}`;
+    window.open(url, '_blank');
+  };
+
+  const goToLogin = () => {
+    if (onLogin) {
+      onLogin();
+    } else {
+      // Fallback: dispatch custom event for App to catch
+      window.dispatchEvent(new CustomEvent('app:showLogin'));
+    }
+  };
+
+  const goToAdminLogin = () => {
+    if (onAdminLogin) {
+      onAdminLogin();
+    }
+  };
+
+  // ========== RENDER ==========
   return (
-    <div className="bg-hero-gradient" style={{ minHeight: '100vh' }}>
-      {/* Backend Status Banner */}
-      {backendStatus === 'offline' && (
-        <div className="alert alert-warning m-0 rounded-0 text-center" role="alert">
-          <strong>⚠️ Backend server not detected.</strong> Please start Laravel: <code>cd backend; php artisan serve</code>
-        </div>
-      )}
-      {backendStatus === 'online' && (
-        <div className="alert alert-success m-0 rounded-0 text-center" role="alert">
-          ✅ Backend API connected (localhost:8000)
-        </div>
-      )}
-      
-      {/* Hero Section */}
-      <section className="container py-5 py-lg-6">
-        <div className="row justify-content-center">
-          <div className="col-12 col-lg-10 text-center">
-            <h1 className="display-4 fw-bold text-brand-charcoal mb-3">
-              Driving Africa's Clean Mobility Revolution
-            </h1>
-            <p className="lead text-brand-gray-dark mb-4 mx-auto" style={{ maxWidth: '720px' }}>
-              Co-own electric vehicles, earn returns, and power sustainable transport through biogas-powered battery swaps.
-            </p>
-            <div className="d-flex flex-column flex-sm-row gap-3 justify-content-center">
-              <button
-                onClick={() => onNavigate(Page.InvestorDashboard)}
-                className="btn btn-lg btn-brand-green shadow"
-              >
-                Start Investing
-              </button>
-              <button
-                onClick={() => onNavigate(Page.OperatorDashboard)}
-                className="btn btn-lg btn-brand-yellow shadow fw-semibold"
-              >
-                Fleet Operations
-              </button>
-              <button
-                onClick={() => onNavigate(Page.About)}
-                className="btn btn-lg btn-outline-dark shadow-sm"
-              >
-                <i className="bi bi-info-circle me-2"></i>
-                About Us
-              </button>
-              {onToggleDemo && (
-                <button
-                  onClick={onToggleDemo}
-                  className={`btn btn-lg ${demoMode ? 'btn-danger' : 'btn-outline-primary'} shadow-sm position-relative`}
-                >
-                  <i className="bi bi-database me-2"></i>
-                  {demoMode ? 'Disable Demo Data' : 'Enable Demo Data'}
-                  {demoMode && (
-                    <span className="badge bg-warning text-dark position-absolute top-0 start-100 translate-middle rounded-pill" style={{ fontSize: '0.6rem' }}>
-                      DEMO
-                    </span>
-                  )}
-                </button>
-              )}
-            </div>
-            {demoMode && (
-              <div className="alert alert-info mt-4 d-inline-block shadow-sm" style={{ maxWidth: 640 }}>
-                <div className="d-flex align-items-start">
-                  <i className="bi bi-lightbulb me-3 fs-3 text-warning"></i>
-                  <div className="text-start small">
-                    <strong>Demo Mode Active:</strong> Sample assets, tokens and payouts are loaded for walkthrough. Disable to return to live backend fetches.
-                  </div>
-                </div>
+    <div className="fleetfi-landing">
+      {/* ============================================================
+          HERO SECTION WITH NAVIGATION
+      ============================================================ */}
+      <section className="hero-section" id="home">
+        {/* Navigation Bar */}
+        <nav className="main-navbar">
+          <div className="navbar-container">
+            {/* Logo */}
+            <div className="brand-logo" onClick={() => scrollTo('home')}>
+              <span className="logo-icon">⚡</span>
+              <div className="brand-text">
+                <span className="brand-name">FleetFi</span>
+                <span className="brand-subtitle">by Freenergy Tech</span>
               </div>
-            )}
+            </div>
+
+            {/* Navigation Links */}
+            <div className="nav-menu">
+              <button onClick={() => scrollTo('problem')} className="nav-link">Challenge</button>
+              <button onClick={() => scrollTo('solution')} className="nav-link">Solution</button>
+              <button onClick={() => scrollTo('how-it-works')} className="nav-link">How It Works</button>
+              <button onClick={() => scrollTo('impact')} className="nav-link">Impact</button>
+              <button onClick={() => scrollTo('contact')} className="nav-link">Contact</button>
+              <button onClick={goToLogin} className="nav-btn-login">Login</button>
+              <button onClick={goToAdminLogin} className="nav-link" style={{ opacity: 0.7 }}>Admin</button>
+            </div>
+
+            {/* Theme Toggle */}
+            <button 
+              onClick={toggleTheme} 
+              className="theme-toggle-btn"
+              aria-label="Toggle theme"
+            >
+              {theme === 'light' ? '🌙' : '☀️'}
+            </button>
+          </div>
+        </nav>
+
+        {/* Hero Content */}
+        <div className="hero-container">
+          <div className="hero-content">
+            <div className="hero-badge">
+              <span>⚡</span>
+              <span>Clean Mobility for Africa</span>
+            </div>
+            
+            <h1 className="hero-title">
+              Electric mobility that helps transport microenterprises{' '}
+              <span className="highlight">earn more</span> — every day
+            </h1>
+            
+            <p className="hero-description">
+              FleetFi helps commercial transport operators access electric vehicles, cut fuel costs, 
+              and increase daily income through pay-as-you-earn clean mobility.
+            </p>
+            
+            <div className="hero-buttons">
+              <button onClick={() => scrollTo('contact')} className="btn-hero-primary">
+                Partner with us →
+              </button>
+              <button onClick={() => scrollTo('how-it-works')} className="btn-hero-secondary">
+                See how it works
+              </button>
+            </div>
+          </div>
+
+          {/* Stats Card */}
+          <div className="stats-card">
+            <div className="stats-grid">
+              <StatCard value="50%" label="Lower Energy Costs" />
+              <StatCard value="100%" label="Electric Fleet" />
+              <StatCard value="24/7" label="Battery Swap Access" />
+              <StatCard value="0%" label="Upfront Cost" />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="container py-5">
-        <h2 className="h1 fw-bold text-center text-brand-charcoal mb-5">How FleetFi Works</h2>
-        <div className="row g-4">
-          <div className="col-12 col-md-4">
+      {/* ============================================================
+          PROBLEM SECTION
+      ============================================================ */}
+      <section className="page-section" id="problem">
+        <div className="section-container">
+          <div className="section-header">
+            <span className="section-tag">The Challenge</span>
+            <h2 className="section-heading">Fuel costs are crushing transport microenterprises</h2>
+            <p className="section-description">
+              Over 80% of commercial transport operators in Sub-Saharan Africa spend up to 60% 
+              of their daily revenue on fuel. High fuel costs and vehicle maintenance leave little room for growth.
+            </p>
+          </div>
+          
+          <div className="features-grid">
             <FeatureCard
-              icon="🚗"
-              title="Fractional EV Ownership"
-              description="Invest in tokenized electric vehicles and earn ROI from daily operations"
+              icon="💸"
+              title="60% of revenue on fuel"
+              description="Operators spend the majority of earnings on expensive petrol, leaving minimal profit."
+            />
+            <FeatureCard
+              icon="🔧"
+              title="High maintenance costs"
+              description="ICE vehicles require frequent servicing, eating into already thin margins."
+            />
+            <FeatureCard
+              icon="🚫"
+              title="No access to clean vehicles"
+              description="Upfront costs of EVs are prohibitively high for microenterprises."
             />
           </div>
-          <div className="col-12 col-md-4">
+        </div>
+      </section>
+
+      {/* ============================================================
+          SOLUTION SECTION
+      ============================================================ */}
+      <section className="page-section section-alt" id="solution">
+        <div className="section-container">
+          <div className="section-header">
+            <span className="section-tag">Our Solution</span>
+            <h2 className="section-heading">Pay-as-you-earn electric mobility</h2>
+            <p className="section-description">
+              FleetFi makes electric vehicles accessible through a tokenized ownership model. 
+              Operators pay per ride, investors earn returns, and everyone benefits from clean energy.
+            </p>
+          </div>
+          
+          <div className="features-grid four-columns">
             <FeatureCard
               icon="⚡"
-              title="Battery Swap Network"
-              description="Biogas-powered swap stations provide clean, fast, and affordable energy"
+              title="Zero upfront cost"
+              description="No large capital investment required. Start earning from day one with pay-per-trip pricing."
             />
-          </div>
-            <div className="col-12 col-md-4">
+            <FeatureCard
+              icon="🔋"
+              title="Battery swap network"
+              description="Instant battery swaps mean zero downtime. Keep vehicles moving and maximize earnings."
+            />
             <FeatureCard
               icon="💰"
-              title="Transparent Returns"
-              description="Smart contracts automatically distribute earnings to investors and riders"
+              title="Fractional ownership"
+              description="Investors can own tokens representing shares in the fleet, earning returns from operations."
+            />
+            <FeatureCard
+              icon="📊"
+              title="Real-time tracking"
+              description="Monitor vehicle performance, battery health, and earnings through our platform."
             />
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="bg-brand-green text-white py-5">
-        <div className="container">
-          <h2 className="h3 fw-bold text-center mb-4 text-brand-yellow">Live Platform Metrics</h2>
-          <div className="row text-center g-4">
-            <div className="col-6 col-md-3">
-              <StatCard 
-                value={liveMetrics ? `${liveMetrics.activeVehicles}` : '40'} 
-                label="Active EVs" 
-              />
-            </div>
-            <div className="col-6 col-md-3">
-              <StatCard 
-                value={liveMetrics ? `$${(liveMetrics.totalRevenue / 1000).toFixed(1)}K` : '$36.5K'} 
-                label="Total Revenue" 
-              />
-            </div>
-            <div className="col-6 col-md-3">
-              <StatCard 
-                value={liveMetrics ? `${liveMetrics.totalInvestors}+` : '450+'} 
-                label="Investors" 
-              />
-            </div>
-            <div className="col-6 col-md-3">
-              <StatCard 
-                value={liveMetrics ? `${liveMetrics.totalRides}` : '73'} 
-                label="Completed Rides" 
-              />
-            </div>
+      {/* ============================================================
+          HOW IT WORKS SECTION
+      ============================================================ */}
+      <section className="page-section" id="how-it-works">
+        <div className="section-container">
+          <div className="section-header">
+            <span className="section-tag">How It Works</span>
+            <h2 className="section-heading">Three simple steps to clean mobility</h2>
           </div>
-        </div>
-      </section>
-
-      {/* Revenue Model Section */}
-      <section className="container py-5">
-        <div className="bg-white rounded-4 shadow p-4 p-md-5">
-          <h2 className="h1 fw-bold text-center text-brand-charcoal mb-4">Revenue Allocation Model</h2>
-          <p className="text-center text-brand-gray-dark mb-5" style={{ maxWidth: '700px', margin: '0 auto' }}>
-            Every ride generates transparent, automated revenue distribution through smart contracts
-          </p>
           
-          <div className="row g-4">
-            <div className="col-12 col-md-6 col-lg-3">
-              <RevenueCard 
-                percentage={50} 
-                title="Investor ROI" 
-                description="Direct returns to token holders based on fractional ownership"
-                color="bg-success"
-              />
-            </div>
-            <div className="col-12 col-md-6 col-lg-3">
-              <RevenueCard 
-                percentage={30} 
-                title="Rider Wages" 
-                description="Fair compensation for drivers powering the fleet"
-                color="bg-primary"
-              />
-            </div>
-            <div className="col-12 col-md-6 col-lg-3">
-              <RevenueCard 
-                percentage={15} 
-                title="Management Reserve" 
-                description="Operations, platform maintenance, and growth"
-                color="bg-warning"
-              />
-            </div>
-            <div className="col-12 col-md-6 col-lg-3">
-              <RevenueCard 
-                percentage={5} 
-                title="Maintenance Fund" 
-                description="Vehicle servicing and infrastructure upkeep"
-                color="bg-info"
-              />
-            </div>
+          <div className="steps-grid">
+            <StepCard
+              number="01"
+              title="Sign up & get verified"
+              description="Register as an operator, complete KYC, and get approved to access the fleet."
+            />
+            <StepCard
+              number="02"
+              title="Start operating"
+              description="Get assigned an EV, swap batteries at our stations, and start earning immediately."
+            />
+            <StepCard
+              number="03"
+              title="Pay as you earn"
+              description="Revenue is automatically distributed: operator earnings, investor returns, and platform fees."
+            />
           </div>
         </div>
       </section>
 
-      {/* User Journey Timeline */}
-      <section className="container py-5">
-        <h2 className="h1 fw-bold text-center text-brand-charcoal mb-5">Your Journey with FleetFi</h2>
-        
-        {/* Role Tabs */}
-        <div className="d-flex justify-content-center mb-4">
-          <div className="btn-group" role="group">
-            <button 
-              className={`btn ${activeTab === 'investor' ? 'btn-brand-green' : 'btn-outline-secondary'}`}
-              onClick={() => setActiveTab('investor')}
-            >
-              👔 Investor
-            </button>
-            <button 
-              className={`btn ${activeTab === 'operator' ? 'btn-brand-green' : 'btn-outline-secondary'}`}
-              onClick={() => setActiveTab('operator')}
-            >
-              🏢 Fleet Operator
-            </button>
-            <button 
-              className={`btn ${activeTab === 'driver' ? 'btn-brand-green' : 'btn-outline-secondary'}`}
-              onClick={() => setActiveTab('driver')}
-            >
-              🚗 Driver
-            </button>
+      {/* ============================================================
+          IMPACT SECTION
+      ============================================================ */}
+      <section className="page-section section-alt" id="impact">
+        <div className="section-container">
+          <div className="section-header">
+            <span className="section-tag">Our Impact</span>
+            <h2 className="section-heading">Creating sustainable livelihoods</h2>
+            <p className="section-description">
+              FleetFi isn't just about electric vehicles—it's about empowering communities, 
+              reducing emissions, and building a sustainable future for African transport.
+            </p>
           </div>
-        </div>
-
-        {/* Journey Steps */}
-        {activeTab === 'investor' && (
-          <div className="row g-4">
-            <div className="col-12 col-md-3">
-              <JourneyStep number={1} title="Create Account" description="Sign up and complete KYC verification in minutes" />
-            </div>
-            <div className="col-12 col-md-3">
-              <JourneyStep number={2} title="Browse Vehicles" description="Explore available EVs with detailed telemetry and ROI projections" />
-            </div>
-            <div className="col-12 col-md-3">
-              <JourneyStep number={3} title="Invest & Own" description="Purchase fractional ownership tokens via secure custody" />
-            </div>
-            <div className="col-12 col-md-3">
-              <JourneyStep number={4} title="Earn Returns" description="Receive automated payouts as vehicles generate revenue" />
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'operator' && (
-          <div className="row g-4">
-            <div className="col-12 col-md-3">
-              <JourneyStep number={1} title="Register Fleet" description="Onboard your electric vehicles to the platform" />
-            </div>
-            <div className="col-12 col-md-3">
-              <JourneyStep number={2} title="List Assets" description="Tokenize vehicles for fractional investment" />
-            </div>
-            <div className="col-12 col-md-3">
-              <JourneyStep number={3} title="Monitor Operations" description="Track telemetry, swaps, and revenue in real-time" />
-            </div>
-            <div className="col-12 col-md-3">
-              <JourneyStep number={4} title="Manage Payouts" description="Distribute earnings to investors and drivers automatically" />
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'driver' && (
-          <div className="row g-4">
-            <div className="col-12 col-md-3">
-              <JourneyStep number={1} title="Apply & Verify" description="Complete driver verification and training" />
-            </div>
-            <div className="col-12 col-md-3">
-              <JourneyStep number={2} title="Get Assigned" description="Receive your vehicle and access to swap network" />
-            </div>
-            <div className="col-12 col-md-3">
-              <JourneyStep number={3} title="Drive & Earn" description="Complete rides and swap batteries seamlessly" />
-            </div>
-            <div className="col-12 col-md-3">
-              <JourneyStep number={4} title="Track Earnings" description="Monitor your wages and performance metrics" />
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* Technology Stack */}
-      <section className="bg-light py-5">
-        <div className="container">
-          <h2 className="h1 fw-bold text-center text-brand-charcoal mb-4">Built on Cutting-Edge Technology</h2>
-          <p className="text-center text-brand-gray-dark mb-5" style={{ maxWidth: '700px', margin: '0 auto' }}>
-            SEC-compliant tokenization meets sustainable infrastructure
-          </p>
           
-          <div className="row g-4 align-items-center">
-            <div className="col-12 col-md-4">
-              <TechCard 
-                icon="🔐"
-                title="TrovoTech Custody"
-                description="SEC-aligned digital asset custody and tokenization infrastructure"
-              />
+          <div className="impact-grid">
+            <div className="impact-card">
+              <div className="impact-number">+40%</div>
+              <h3 className="impact-label">Increase in daily income</h3>
+              <p className="impact-description">
+                Operators earn more by spending less on energy and maintenance.
+              </p>
             </div>
-            <div className="col-12 col-md-4">
-              <TechCard 
-                icon="⛓️"
-                title="Bantu Blockchain"
-                description="Fast, low-cost transactions on Africa's leading blockchain network"
-              />
+            <div className="impact-card">
+              <div className="impact-number">-70%</div>
+              <h3 className="impact-label">CO₂ emissions reduction</h3>
+              <p className="impact-description">
+                Every EV on the road cuts carbon emissions dramatically.
+              </p>
             </div>
-            <div className="col-12 col-md-4">
-              <TechCard 
-                icon="📊"
-                title="Real-Time Telemetry"
-                description="IoT sensors track battery health, location, and usage patterns"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ESG Impact Section */}
-      <section className="container py-5">
-        <div className="bg-white rounded-4 shadow p-4 p-md-5">
-          <h2 className="h1 fw-bold text-center text-brand-charcoal mb-4">Environmental Impact</h2>
-          <div className="row g-4">
-            <div className="col-12 col-md-4">
-              <ImpactCard icon="🌱" value="12,000 tons" label="CO₂ Reduced Annually" />
-            </div>
-            <div className="col-12 col-md-4">
-              <ImpactCard icon="♻️" value="100%" label="Renewable Energy" />
-            </div>
-            <div className="col-12 col-md-4">
-              <ImpactCard icon="🔋" value="50,000+" label="Clean Battery Swaps" />
+            <div className="impact-card">
+              <div className="impact-number">100%</div>
+              <h3 className="impact-label">Renewable energy powered</h3>
+              <p className="impact-description">
+                Our battery swap stations run on clean, biogas-generated electricity.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="container py-5">
-        <h2 className="h1 fw-bold text-center text-brand-charcoal mb-5">Frequently Asked Questions</h2>
-        <div className="row justify-content-center">
-          <div className="col-12 col-lg-10">
-            <div className="accordion" id="faqAccordion">
-              <FAQItem 
-                id="faq1"
-                question="How does fractional ownership work?"
-                answer="Each electric vehicle is tokenized into digital shares. When you invest, you purchase a specific fraction (e.g., 25%) of a vehicle. Your ownership is recorded on the blockchain, and you earn proportional returns from that vehicle's daily operations."
+      {/* ============================================================
+          CONTACT SECTION
+      ============================================================ */}
+      <section className="page-section" id="contact">
+        <div className="section-container">
+          <div className="section-header">
+            <span className="section-tag">Get In Touch</span>
+            <h2 className="section-heading">Let's build the future of mobility together</h2>
+            <p className="section-description">
+              Whether you're an operator, investor, or partner, we'd love to hear from you.
+            </p>
+          </div>
+          
+          <div className="contact-container">
+            {/* Contact Form */}
+            <form className="contact-form" onSubmit={handleSubmit}>
+              <div className="form-row">
+                <input
+                  type="text"
+                  name="name"
+                  placeholder="Full Name *"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                  className="form-input"
+                />
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="Email Address *"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                  className="form-input"
+                />
+              </div>
+              
+              <div className="form-row">
+                <input
+                  type="tel"
+                  name="phone"
+                  placeholder="Phone Number"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  className="form-input"
+                />
+                <input
+                  type="text"
+                  name="company"
+                  placeholder="Company (Optional)"
+                  value={formData.company}
+                  onChange={handleInputChange}
+                  className="form-input"
+                />
+              </div>
+              
+              <select
+                name="interest"
+                value={formData.interest}
+                onChange={handleInputChange}
+                className="form-input"
+              >
+                <option value="partnership">Partnership Inquiry</option>
+                <option value="operator">Become an Operator</option>
+                <option value="investor">Investment Opportunity</option>
+                <option value="other">General Inquiry</option>
+              </select>
+              
+              <textarea
+                name="message"
+                placeholder="Tell us more about your interest... *"
+                value={formData.message}
+                onChange={handleInputChange}
+                required
+                rows={6}
+                className="form-textarea"
               />
-              <FAQItem 
-                id="faq2"
-                question="What are the expected returns?"
-                answer="Historical data shows average annual ROI of 12-18%, depending on vehicle utilization. Returns are distributed automatically via smart contracts as rides are completed. You receive 50% of the revenue generated by your fractional ownership stake."
-              />
-              <FAQItem 
-                id="faq3"
-                question="Is my investment secure?"
-                answer="Yes. Assets are custodied through TrovoTech's SEC-compliant infrastructure. All transactions are recorded on the Bantu blockchain for transparency. Vehicles are insured, and ownership tokens are held in regulated digital wallets."
-              />
-              <FAQItem 
-                id="faq4"
-                question="How do battery swaps work?"
-                answer="Our network of biogas-powered swap stations enables drivers to exchange depleted batteries for fully charged ones in under 3 minutes. This eliminates range anxiety and charging downtime, maximizing vehicle uptime and revenue."
-              />
-              <FAQItem 
-                id="faq5"
-                question="Can I sell my tokens?"
-                answer="Yes. Once verified, you can list your ownership tokens on the SLX Marketplace for secondary trading. This provides liquidity and allows you to exit positions or reallocate investments."
-              />
-              <FAQItem 
-                id="faq6"
-                question="What is the minimum investment?"
-                answer="You can start with as little as $500, which typically represents 10-15% fractional ownership of a single vehicle. There's no maximum limit—diversify across multiple vehicles to spread risk."
-              />
+              
+              {formStatus.message && (
+                <div className={`form-alert alert-${formStatus.type}`}>
+                  {formStatus.message}
+                </div>
+              )}
+              
+              <button
+                type="submit"
+                className="form-submit-btn"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Sending...' : 'Send Message →'}
+              </button>
+            </form>
+
+            {/* Contact Info */}
+            <div className="contact-info">
+              <div className="info-box">
+                <h3>📧 Email Us</h3>
+                <p>partnerships@freenergy.tech</p>
+              </div>
+              <div className="info-box">
+                <h3>📍 Location</h3>
+                <p>Lagos, Nigeria</p>
+              </div>
+              <div className="info-box">
+                <h3>💬 WhatsApp</h3>
+                <button onClick={openWhatsApp} className="btn-whatsapp">
+                  Chat with us →
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="bg-light py-5">
-        <div className="container">
-          <h2 className="h1 fw-bold text-center text-brand-charcoal mb-5">What Our Community Says</h2>
-          <div className="row g-4">
-            <div className="col-12 col-md-4">
-              <TestimonialCard 
-                name="Sarah Investor"
-                role="Investor"
-                quote="I've earned 14% returns in 6 months. The transparency and automation make this the easiest investment I've ever made."
-                avatar="👩‍💼"
-              />
+      {/* ============================================================
+          FOOTER
+      ============================================================ */}
+      <footer className="page-footer">
+        <div className="footer-container">
+          <div className="footer-grid">
+            <div className="footer-column">
+              <h3 className="footer-brand">FleetFi</h3>
+              <p className="footer-tagline">
+                Clean mobility solutions for African transport microenterprises.
+              </p>
             </div>
-            <div className="col-12 col-md-4">
-              <TestimonialCard 
-                name="Michael Chen"
-                role="Fleet Operator"
-                quote="FleetFi's tokenization opened up capital from hundreds of investors. We scaled our fleet 3x faster than traditional financing."
-                avatar="👨‍💼"
-              />
+            
+            <div className="footer-column">
+              <h4 className="footer-heading">Product</h4>
+              <ul className="footer-menu">
+                <li><button onClick={() => scrollTo('problem')}>The Challenge</button></li>
+                <li><button onClick={() => scrollTo('solution')}>Our Solution</button></li>
+                <li><button onClick={() => scrollTo('how-it-works')}>How It Works</button></li>
+                <li><button onClick={() => scrollTo('impact')}>Impact</button></li>
+              </ul>
             </div>
-            <div className="col-12 col-md-4">
-              <TestimonialCard 
-                name="Chioma Driver"
-                role="Driver"
-                quote="Battery swaps are so fast! I complete 30% more rides per day compared to traditional EVs with charging downtime."
-                avatar="👩‍✈️"
-              />
+            
+            <div className="footer-column">
+              <h4 className="footer-heading">Company</h4>
+              <ul className="footer-menu">
+                <li><button onClick={() => scrollTo('contact')}>Contact</button></li>
+                <li><button onClick={goToLogin}>Login</button></li>
+              </ul>
+            </div>
+            
+            <div className="footer-column">
+              <h4 className="footer-heading">Connect</h4>
+              <ul className="footer-menu">
+                <li><a href="mailto:partnerships@freenergy.tech">Email</a></li>
+                <li><button onClick={openWhatsApp}>WhatsApp</button></li>
+              </ul>
             </div>
           </div>
+          
+          <div className="footer-bottom">
+            <p>&copy; 2025 Freenergy Tech. All rights reserved.</p>
+          </div>
         </div>
-      </section>
+      </footer>
 
-      {/* CTA Section */}
-      <section className="container py-5 text-center">
-        <h2 className="display-6 fw-bold text-brand-charcoal mb-3">Ready to Join the Revolution?</h2>
-        <p className="lead text-brand-gray-dark mb-4">Start investing in Africa's clean mobility future today.</p>
-        <button
-          onClick={() => onNavigate(Page.InvestorDashboard)}
-          className="btn btn-lg btn-brand-green shadow"
+      {/* ============================================================
+          FLOATING ACTION BUTTONS
+      ============================================================ */}
+      <button 
+        onClick={openWhatsApp} 
+        className="fab whatsapp-fab"
+        aria-label="Chat on WhatsApp"
+      >
+        💬
+      </button>
+
+      {showScrollTop && (
+        <button 
+          onClick={scrollToTop} 
+          className="fab scroll-fab"
+          aria-label="Scroll to top"
         >
-          Get Started
+          ↑
         </button>
-      </section>
+      )}
     </div>
   );
 };
 
-const FeatureCard: React.FC<{ icon: string; title: string; description: string }> = ({ icon, title, description }) => (
-  <div className="bg-white h-100 p-4 rounded-3 shadow-sm border">
-    <div className="fs-1 mb-3">{icon}</div>
-    <h3 className="h5 fw-bold text-brand-charcoal mb-2">{title}</h3>
-    <p className="text-brand-gray-dark mb-0" style={{ fontSize: '0.95rem' }}>{description}</p>
-  </div>
-);
-
-const StatCard: React.FC<{ value: string; label: string }> = ({ value, label }) => (
-  <div className="d-flex flex-column align-items-center">
-    <div className="fw-bold" style={{ fontSize: '2rem' }}>{value}</div>
-    <div className="text-brand-yellow" style={{ fontWeight: 500 }}>{label}</div>
-  </div>
-);
-
-const ImpactCard: React.FC<{ icon: string; value: string; label: string }> = ({ icon, value, label }) => (
-  <div className="text-center">
-    <div className="fs-1 mb-2">{icon}</div>
-    <div className="fw-bold text-brand-green" style={{ fontSize: '1.75rem' }}>{value}</div>
-    <div className="text-brand-gray-dark" style={{ fontSize: '0.9rem' }}>{label}</div>
-  </div>
-);
-
-const RevenueCard: React.FC<{ percentage: number; title: string; description: string; color: string }> = 
-  ({ percentage, title, description, color }) => (
-  <div className="bg-white border rounded-3 p-4 h-100 shadow-sm">
-    <div className={`${color} text-white rounded-circle d-flex align-items-center justify-content-center mb-3`} 
-         style={{ width: '80px', height: '80px', fontSize: '2rem', fontWeight: 'bold', margin: '0 auto' }}>
-      {percentage}%
-    </div>
-    <h3 className="h5 fw-bold text-center text-brand-charcoal mb-2">{title}</h3>
-    <p className="text-center text-brand-gray-dark mb-0" style={{ fontSize: '0.9rem' }}>{description}</p>
-  </div>
-);
-
-const JourneyStep: React.FC<{ number: number; title: string; description: string }> = 
-  ({ number, title, description }) => (
-  <div className="bg-white border rounded-3 p-4 h-100 shadow-sm position-relative">
-    <div className="bg-brand-green text-white rounded-circle d-flex align-items-center justify-content-center mb-3" 
-         style={{ width: '50px', height: '50px', fontSize: '1.5rem', fontWeight: 'bold' }}>
-      {number}
-    </div>
-    <h3 className="h6 fw-bold text-brand-charcoal mb-2">{title}</h3>
-    <p className="text-brand-gray-dark mb-0" style={{ fontSize: '0.85rem' }}>{description}</p>
-  </div>
-);
-
-const TechCard: React.FC<{ icon: string; title: string; description: string }> = 
-  ({ icon, title, description }) => (
-  <div className="bg-white border rounded-3 p-4 h-100 shadow-sm text-center">
-    <div className="fs-1 mb-3">{icon}</div>
-    <h3 className="h5 fw-bold text-brand-charcoal mb-2">{title}</h3>
-    <p className="text-brand-gray-dark mb-0" style={{ fontSize: '0.9rem' }}>{description}</p>
-  </div>
-);
-
-const FAQItem: React.FC<{ id: string; question: string; answer: string }> = 
-  ({ id, question, answer }) => (
-  <div className="accordion-item border mb-3 rounded-3">
-    <h2 className="accordion-header">
-      <button 
-        className="accordion-button collapsed fw-semibold" 
-        type="button" 
-        data-bs-toggle="collapse" 
-        data-bs-target={`#${id}`}
-      >
-        {question}
-      </button>
-    </h2>
-    <div id={id} className="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-      <div className="accordion-body text-brand-gray-dark">
-        {answer}
-      </div>
-    </div>
-  </div>
-);
-
-const TestimonialCard: React.FC<{ name: string; role: string; quote: string; avatar: string }> = 
-  ({ name, role, quote, avatar }) => (
-  <div className="bg-white border rounded-3 p-4 h-100 shadow-sm">
-    <div className="d-flex align-items-center mb-3">
-      <div className="fs-1 me-3">{avatar}</div>
-      <div>
-        <div className="fw-bold text-brand-charcoal">{name}</div>
-        <div className="text-brand-gray-dark small">{role}</div>
-      </div>
-    </div>
-    <p className="text-brand-gray-dark mb-0 fst-italic">"{quote}"</p>
-  </div>
-);
+export default LandingPage;

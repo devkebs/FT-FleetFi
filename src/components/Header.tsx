@@ -33,6 +33,7 @@ export const Header: React.FC<HeaderProps> = ({
   const allNavItems = [
     { page: Page.Landing, label: 'Home', icon: 'bi-house', roles: ['investor','operator','driver','admin'] },
     { page: Page.About, label: 'About', icon: 'bi-info-circle', roles: ['investor','operator','driver','admin'] },
+    { page: Page.Contact, label: 'Contact', icon: 'bi-envelope', roles: ['investor','operator','driver','admin'] },
     { page: Page.InvestorDashboard, label: 'Investor', icon: 'bi-graph-up', roles: ['investor'] },
     { page: Page.OperatorDashboard, label: 'Operator', icon: 'bi-speedometer2', roles: ['operator'] },
     { page: Page.DriverDashboard, label: 'Driver', icon: 'bi-car-front', roles: ['driver'] },

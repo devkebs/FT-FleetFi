@@ -13,21 +13,26 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
   };
 
   const handleContactUs = () => {
-    // Contact page navigation would go here
-    console.log('Navigate to contact page');
+    if (onNavigate) {
+      onNavigate(Page.Contact);
+    }
   };
 
   return (
     <div className="min-vh-100 bg-light">
       {/* Hero Section */}
-      <section className="bg-gradient text-white py-5">
+      <section className="bg-dark text-white py-5">
         <div className="container py-5">
           <div className="row align-items-center">
             <div className="col-lg-8 mx-auto text-center">
-              <h1 className="display-3 fw-bold mb-4">About FleetFi</h1>
-              <p className="lead fs-4 mb-0">
-                Revolutionizing electric vehicle fleet management through tokenization,
-                democratizing access to sustainable transportation investments.
+              <h1 className="display-3 fw-bold mb-4">Welcome to FleetFi</h1>
+              <p className="lead fs-4 mb-2">
+                Transform the Future of Transportation Through Fractional EV Fleet Ownership
+              </p>
+              <p className="fs-5 text-white-50">
+                Invest in tokenized electric vehicle fleets, earn sustainable returns, and drive 
+                the clean energy revolution—all from one intelligent platform combining blockchain 
+                technology with real-world fleet operations.
               </p>
             </div>
           </div>
@@ -279,7 +284,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
       </section>
 
       {/* Call to Action */}
-      <section className="bg-gradient text-white py-5">
+      <section className="bg-dark text-white py-5">
         <div className="container py-4">
           <div className="row">
             <div className="col-lg-8 mx-auto text-center">

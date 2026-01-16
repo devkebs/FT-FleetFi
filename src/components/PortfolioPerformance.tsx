@@ -1,29 +1,8 @@
 import React, { useEffect, useState, memo } from 'react';
-import { getStoredToken } from '../services/api';
-
-interface PerformanceMetrics {
-  total_investment: number;
-  current_value: number;
-  total_returns: number;
-  roi_percent: number;
-  best_performing_asset?: {
-    asset_id: number;
-    asset_model: string;
-    roi_percent: number;
-  };
-  worst_performing_asset?: {
-    asset_id: number;
-    asset_model: string;
-    roi_percent: number;
-  };
-  monthly_returns?: Array<{
-    month: string;
-    returns: number;
-  }>;
-}
+import { InvestmentAPI, PortfolioPerformance as PortfolioPerformanceType } from '../services/api';
 
 const PortfolioPerformanceComponent: React.FC = () => {
-  const [performance, setPerformance] = useState<PerformanceMetrics | null>(null);
+  const [performance, setPerformance] = useState<PortfolioPerformanceType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,45 +13,27 @@ const PortfolioPerformanceComponent: React.FC = () => {
   const fetchPerformance = async () => {
     try {
       setLoading(true);
-      const token = getStoredToken();
-      if (!token) {
-        // No token - silently set empty state
-        setPerformance(null);
-        setError(null);
-        setLoading(false);
-        return;
-      }
-      const response = await fetch('http://localhost:8000/api/portfolio/performance', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-      });
-      
-      if (response.status === 401) {
-        // Auth error - user session expired, show friendly message
-        setPerformance(null);
-        setError('Session expired. Please login again.');
-        return;
-      }
-      
-      if (!response.ok) {
-        // Other errors - show error message but don't crash
-        setPerformance(null);
-        setError('Unable to load performance data');
-        return;
-      }
-      
-      const data = await response.json();
-      setPerformance(data);
       setError(null);
+      const data = await InvestmentAPI.getPerformance();
+      setPerformance(data);
     } catch (err: any) {
-      // Handle all errors gracefully without crashing
-      setError('Unable to load performance data');
-      setPerformance(null);
+      if (err?.status === 401) {
+        setError('Session expired. Please login again.');
+      } else {
+        setError(err?.message || 'Unable to load performance data');
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
   };
 
   if (loading) {
@@ -123,10 +84,9 @@ const PortfolioPerformanceComponent: React.FC = () => {
     );
   }
 
-  // Add default values to prevent undefined errors
-  const totalInvestment = performance.total_investment ?? 0;
+  const totalInvestment = performance.total_invested ?? 0;
   const currentValue = performance.current_value ?? 0;
-  const profitLoss = currentValue - totalInvestment;
+  const profitLoss = performance.unrealized_gains ?? (currentValue - totalInvestment);
   const isProfitable = profitLoss >= 0;
 
   return (
@@ -148,69 +108,106 @@ const PortfolioPerformanceComponent: React.FC = () => {
           <div className="col-md-3">
             <div className="p-3 bg-light rounded">
               <small className="text-muted d-block mb-1">Total Investment</small>
-              <h6 className="mb-0 fw-bold">₦{(Number(totalInvestment) || 0).toLocaleString()}</h6>
+              <h6 className="mb-0 fw-bold">{formatCurrency(totalInvestment)}</h6>
             </div>
           </div>
           <div className="col-md-3">
             <div className="p-3 bg-light rounded">
               <small className="text-muted d-block mb-1">Current Value</small>
-              <h6 className="mb-0 fw-bold">₦{(Number(currentValue) || 0).toLocaleString()}</h6>
+              <h6 className="mb-0 fw-bold">{formatCurrency(currentValue)}</h6>
             </div>
           </div>
           <div className="col-md-3">
             <div className={`p-3 rounded ${isProfitable ? 'bg-success bg-opacity-10' : 'bg-danger bg-opacity-10'}`}>
-              <small className="text-muted d-block mb-1">Profit/Loss</small>
+              <small className="text-muted d-block mb-1">Unrealized Gains</small>
               <h6 className={`mb-0 fw-bold ${isProfitable ? 'text-success' : 'text-danger'}`}>
-                {isProfitable ? '+' : ''}₦{(Number(profitLoss) || 0).toLocaleString()}
+                {isProfitable ? '+' : ''}{formatCurrency(profitLoss)}
               </h6>
             </div>
           </div>
           <div className="col-md-3">
             <div className={`p-3 rounded ${isProfitable ? 'bg-success bg-opacity-10' : 'bg-danger bg-opacity-10'}`}>
-              <small className="text-muted d-block mb-1">ROI</small>
+              <small className="text-muted d-block mb-1">Overall ROI</small>
               <h6 className={`mb-0 fw-bold ${isProfitable ? 'text-success' : 'text-danger'}`}>
-                {isProfitable ? '+' : ''}{(performance.roi_percent ?? 0).toFixed(2)}%
+                {isProfitable ? '+' : ''}{(performance.overall_roi ?? 0).toFixed(2)}%
               </h6>
             </div>
           </div>
         </div>
 
-        {/* Best & Worst Performers */}
-        {(performance.best_performing_asset || performance.worst_performing_asset) && (
+        {/* Investment Breakdown by Asset Type */}
+        {performance.investment_breakdown && (
           <div className="row g-3 mb-4">
-            {performance.best_performing_asset && (
+            <div className="col-12">
+              <h6 className="mb-3">
+                <i className="bi bi-pie-chart me-2"></i>
+                Investment Breakdown
+              </h6>
+            </div>
+            <div className="col-md-4">
+              <div className="border rounded p-3 text-center">
+                <i className="bi bi-truck fs-3 text-primary"></i>
+                <div className="mt-2">
+                  <small className="text-muted d-block">E-Kekes</small>
+                  <strong>{formatCurrency(performance.investment_breakdown.vehicles || 0)}</strong>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4">
+              <div className="border rounded p-3 text-center">
+                <i className="bi bi-battery-charging fs-3 text-success"></i>
+                <div className="mt-2">
+                  <small className="text-muted d-block">Batteries</small>
+                  <strong>{formatCurrency(performance.investment_breakdown.batteries || 0)}</strong>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4">
+              <div className="border rounded p-3 text-center">
+                <i className="bi bi-lightning-charge fs-3 text-warning"></i>
+                <div className="mt-2">
+                  <small className="text-muted d-block">Cabinets</small>
+                  <strong>{formatCurrency(performance.investment_breakdown.cabinets || 0)}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Best & Worst Performers */}
+        {(performance.best_performer || performance.worst_performer) && (
+          <div className="row g-3 mb-4">
+            {performance.best_performer && (
               <div className="col-md-6">
                 <div className="border border-success rounded p-3">
                   <div className="d-flex align-items-center mb-2">
                     <i className="bi bi-trophy-fill text-success fs-4 me-2"></i>
                     <div>
                       <small className="text-muted d-block">Best Performer</small>
-                      <strong>{performance.best_performing_asset.asset_model}</strong>
+                      <strong>{performance.best_performer.asset_id}</strong>
                     </div>
                   </div>
-                  <div className="d-flex justify-content-between align-items-center">
-                    <small className="text-muted">Asset ID: {performance.best_performing_asset.asset_id}</small>
+                  <div className="d-flex justify-content-end">
                     <span className="badge bg-success">
-                      +{performance.best_performing_asset.roi_percent.toFixed(2)}% ROI
+                      +{performance.best_performer.roi.toFixed(2)}% ROI
                     </span>
                   </div>
                 </div>
               </div>
             )}
-            {performance.worst_performing_asset && (
+            {performance.worst_performer && (
               <div className="col-md-6">
                 <div className="border border-warning rounded p-3">
                   <div className="d-flex align-items-center mb-2">
                     <i className="bi bi-exclamation-triangle-fill text-warning fs-4 me-2"></i>
                     <div>
                       <small className="text-muted d-block">Needs Attention</small>
-                      <strong>{performance.worst_performing_asset.asset_model}</strong>
+                      <strong>{performance.worst_performer.asset_id}</strong>
                     </div>
                   </div>
-                  <div className="d-flex justify-content-between align-items-center">
-                    <small className="text-muted">Asset ID: {performance.worst_performing_asset.asset_id}</small>
-                    <span className="badge bg-warning">
-                      {performance.worst_performing_asset.roi_percent.toFixed(2)}% ROI
+                  <div className="d-flex justify-content-end">
+                    <span className="badge bg-warning text-dark">
+                      {performance.worst_performer.roi.toFixed(2)}% ROI
                     </span>
                   </div>
                 </div>
@@ -219,30 +216,30 @@ const PortfolioPerformanceComponent: React.FC = () => {
           </div>
         )}
 
-        {/* Monthly Returns Timeline */}
-        {performance.monthly_returns && performance.monthly_returns.length > 0 && (
+        {/* Monthly Earnings Timeline */}
+        {performance.monthly_earnings && performance.monthly_earnings.length > 0 && (
           <div>
             <h6 className="mb-3">
               <i className="bi bi-calendar3 me-2"></i>
-              Monthly Returns
+              Monthly Earnings
             </h6>
             <div className="table-responsive">
               <table className="table table-sm table-hover">
                 <thead>
                   <tr>
                     <th>Month</th>
-                    <th className="text-end">Returns</th>
+                    <th className="text-end">Earnings</th>
                     <th className="text-end">Trend</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {performance.monthly_returns.map((month) => {
-                    const isPositive = month.returns >= 0;
+                  {performance.monthly_earnings.map((month) => {
+                    const isPositive = month.earnings >= 0;
                     return (
                       <tr key={month.month}>
                         <td className="fw-bold">{month.month}</td>
                         <td className={`text-end ${isPositive ? 'text-success' : 'text-danger'}`}>
-                          {isPositive ? '+' : ''}₦{(Number(month.returns) || 0).toLocaleString()}
+                          {isPositive ? '+' : ''}{formatCurrency(month.earnings)}
                         </td>
                         <td className="text-end">
                           {isPositive ? (
@@ -260,12 +257,12 @@ const PortfolioPerformanceComponent: React.FC = () => {
           </div>
         )}
 
-        {/* Total Returns Summary */}
+        {/* Total Earnings Summary */}
         <div className="mt-3 p-3 bg-light rounded">
           <div className="d-flex justify-content-between align-items-center">
             <div>
-              <small className="text-muted d-block">Total Returns Received</small>
-              <strong>₦{(Number(performance.total_returns) || 0).toLocaleString()}</strong>
+              <small className="text-muted d-block">Total Earnings Received</small>
+              <strong>{formatCurrency(performance.total_earnings || 0)}</strong>
             </div>
             <i className="bi bi-cash-stack fs-3 text-success"></i>
           </div>

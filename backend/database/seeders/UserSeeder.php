@@ -18,8 +18,8 @@ class UserSeeder extends Seeder
             // Admin Users (3)
             [
                 'name' => 'System Administrator',
-                'email' => 'admin@fleetfi.com',
-                'password' => Hash::make('admin123'),
+                'email' => 'kebs@gmail.com',
+                'password' => Hash::make('Codedbolken3030@1'),
                 'role' => 'admin',
                 'kyc_status' => 'verified',
                 'kyc_verified_at' => now(),

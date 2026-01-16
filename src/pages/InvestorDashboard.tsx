@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Asset, Token, Payout } from '../types';
 import { createWallet, getWallet, mintAssetToken, getMyTokens, WalletResponse, TokenMintResponse } from '../services/trovotech';
-import { fetchRevenueSummary, RevenueBreakdown as RevenueBreakdownType } from '../services/api';
+import { fetchRevenueSummary, RevenueBreakdown as RevenueBreakdownType, InvestmentAPI } from '../services/api';
 import { PortfolioSummary } from '../components/PortfolioSummary';
 import { PortfolioPerformance } from '../components/PortfolioPerformance';
 import { TransactionHistory } from '../components/TransactionHistory';
@@ -15,6 +15,7 @@ import { WalletBalanceWidget } from '../components/WalletBalanceWidget';
 import { InvestmentTransactionHistory, Transaction } from '../components/InvestmentTransactionHistory';
 import { PayoutNotifications, PayoutNotification } from '../components/PayoutNotifications';
 import { AssetBrowserModal } from '../components/AssetBrowserModal';
+import { AssetMarketplace } from '../components/AssetMarketplace';
 
 interface InvestorDashboardProps {
   assets?: Asset[];
@@ -562,75 +563,36 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
         <TransactionHistory walletAddress={wallet?.walletAddress || ''} />
       </div>
 
-      {/* Available Assets for Investment */}
-      {availableAssets.length > 0 && (
-        <div className="card shadow-sm mb-4 border-0">
-          <div className="card-header bg-white border-bottom">
-            <h5 className="mb-0"><i className="bi bi-shop me-2 text-success"></i>Available for Investment</h5>
-          </div>
-          <div className="card-body">
-            {!wallet && (
-              <div className="alert alert-info mb-3">
-                <i className="bi bi-info-circle me-2"></i>
-                <strong>Create a wallet to start investing!</strong> Click the "Create Wallet" button above to get started.
-              </div>
-            )}
-            <div className="row g-3">
-              {availableAssets.slice(0, 6).map(asset => (
-                <div className="col-md-4" key={asset.id}>
-                  <div className="card h-100 border">
-                    <div className="card-body">
-                      <div className="d-flex justify-content-between align-items-start mb-2">
-                        <span className="badge bg-secondary">{asset.type}</span>
-                        <span className={`badge ${asset.status === 'Available' ? 'bg-success' : 'bg-warning'}`}>
-                          {asset.status}
-                        </span>
-                      </div>
-                      <h6 className="fw-bold">{asset.model}</h6>
-                      <p className="small text-muted mb-2">ID: {asset.id}</p>
-                      <div className="d-flex justify-content-between align-items-center mb-3">
-                        <span className="small">SOH: <span className="fw-bold text-success">{asset.soh}%</span></span>
-                        <span className="small">Swaps: {asset.swaps}</span>
-                      </div>
-                      <div className="position-relative">
-                        <button
-                          className="btn btn-success btn-sm w-100"
-                          onClick={() => handleInvestClick(asset)}
-                          disabled={investmentDisabled}
-                        >
-                          <i className="bi bi-cart-plus me-1"></i>
-                          {investmentDisabled ? 'KYC Needed' : 'Invest Now'}
-                        </button>
-                        {investmentDisabled && (
-                          <div className="small text-muted mt-2">
-                            {kycStatus === 'pending' && 'Complete KYC to invest.'}
-                            {kycStatus === 'submitted' && 'Awaiting verification.'}
-                            {kycStatus === 'rejected' && 'KYC rejected - resubmit.'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+      {/* Asset Marketplace - Real-time investment opportunities */}
+      {wallet && (
+        <div className="mb-4">
+          <AssetMarketplace onInvestmentComplete={() => {
+            loadMyTokens();
+            loadWallet();
+          }} />
+        </div>
+      )}
+
+      {/* Show wallet creation prompt if no wallet */}
+      {!wallet && (
+        <div className="card shadow-sm mb-4 border-0 bg-gradient" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+          <div className="card-body text-white text-center py-5">
+            <i className="bi bi-wallet2 display-1"></i>
+            <h4 className="mt-3">Create Your Wallet to Start Investing</h4>
+            <p className="mb-4">Set up your wallet to browse and invest in tokenized EV assets</p>
+            <button className="btn btn-light btn-lg" onClick={handleCreateWallet} disabled={loadingWallet}>
+              <i className="bi bi-wallet2 me-2"></i>
+              {loadingWallet ? 'Creating...' : 'Create Wallet Now'}
+            </button>
           </div>
         </div>
       )}
 
-      {/* Show message when no assets available */}
-      {availableAssets.length === 0 && assets.length > 0 && (
-        <div className="alert alert-success border-0 shadow-sm mb-4">
-          <i className="bi bi-check-circle me-2"></i>
-          <strong>Great!</strong> You've already invested in all available assets. Check out your portfolio above.
-        </div>
-      )}
-
-      {/* Show message when no assets exist at all */}
-      {assets.length === 0 && (
+      {/* Legacy Available Assets for Investment (fallback) */}
+      {availableAssets.length > 0 && !wallet && (
         <div className="alert alert-info border-0 shadow-sm mb-4">
           <i className="bi bi-info-circle me-2"></i>
-          <strong>No assets available yet.</strong> New investment opportunities will appear here once assets are added to the platform.
+          <strong>Investment opportunities available!</strong> Create a wallet above to start investing in {availableAssets.length} available assets.
         </div>
       )}
 

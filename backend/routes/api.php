@@ -42,6 +42,7 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\PortfolioController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\DriverController;
 
 // Public routes
 Route::get('/ping', [HealthController::class, 'ping']);
@@ -93,7 +94,23 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}', [PortfolioController::class, 'show']);
     });
 
-    // Investment endpoints (existing /investments route)
+    // Investment endpoints - Full investor journey
+    Route::prefix('invest')->middleware('role:investor,operator')->group(function () {
+        // Portfolio management
+        Route::get('/portfolio', [InvestmentController::class, 'portfolio']);
+        Route::get('/portfolio/performance', [InvestmentController::class, 'performance']);
+        Route::get('/history', [InvestmentController::class, 'history']);
+
+        // Available assets for investment
+        Route::get('/assets', [InvestmentController::class, 'availableAssets']);
+        Route::get('/assets/{id}', [InvestmentController::class, 'assetDetails']);
+
+        // Investment actions
+        Route::post('/purchase', [InvestmentController::class, 'invest']);
+        Route::post('/simulate-payout', [InvestmentController::class, 'simulatePayout']);
+    });
+
+    // Legacy investment endpoints (backward compatibility)
     Route::get('/investments', [PortfolioController::class, 'index'])->middleware('role:investor,operator');
     Route::get('/investments/{id}', [PortfolioController::class, 'show'])->middleware('role:investor,operator');
 
@@ -134,10 +151,52 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Token & wallet: investor and operator can view their tokens/wallet
     Route::post('/wallet/create', [WalletController::class, 'create'])->middleware('role:investor,operator,driver');
+    Route::get('/wallet/me', [WalletController::class, 'myWallet'])->middleware('role:investor,operator,driver');
+    Route::get('/wallet/me/stats', [WalletController::class, 'getStats'])->middleware('role:investor,operator,driver');
     Route::get('/wallet/{userId}', [WalletController::class, 'show'])->middleware('role:investor,operator,driver');
     Route::get('/wallet/{userId}/balance', [WalletController::class, 'getBalance'])->middleware('role:investor,operator,driver');
     Route::get('/wallet/{userId}/transactions', [WalletController::class, 'getTransactions'])->middleware('role:investor,operator,driver');
+    Route::get('/wallet/{userId}/stats', [WalletController::class, 'getStats'])->middleware('role:investor,operator,driver');
     Route::post('/wallet/transfer', [WalletController::class, 'transfer'])->middleware('role:investor,operator');
+    Route::post('/wallet/deposit', [WalletController::class, 'deposit'])->middleware('role:investor,operator,driver');
+    Route::post('/wallet/withdraw', [WalletController::class, 'withdraw'])->middleware('role:investor,operator,driver');
+
+    // =========================================================================
+    // DRIVER ROUTES - Trip & Earnings Tracking
+    // =========================================================================
+    Route::prefix('driver')->middleware('role:driver,operator')->group(function () {
+        // Dashboard
+        Route::get('/dashboard', [DriverController::class, 'dashboard']);
+
+        // Trip Management
+        Route::get('/trips', [DriverController::class, 'getTrips']);
+        Route::get('/trips/active', [DriverController::class, 'getActiveTrip']);
+        Route::post('/trips/start', [DriverController::class, 'startTrip']);
+        Route::patch('/trips/{tripId}/end', [DriverController::class, 'endTrip']);
+        Route::patch('/trips/{tripId}/cancel', [DriverController::class, 'cancelTrip']);
+        Route::get('/trips/{tripId}', [DriverController::class, 'getTripDetails']);
+
+        // Earnings Management
+        Route::get('/earnings', [DriverController::class, 'getEarningsSummary']);
+        Route::get('/earnings/history', [DriverController::class, 'getEarningsHistory']);
+        Route::get('/earnings/daily', [DriverController::class, 'getDailyEarnings']);
+        Route::get('/earnings/monthly/{year}/{month}', [DriverController::class, 'getMonthlyReport']);
+        Route::get('/earnings/legacy', [DriverController::class, 'myEarningsLegacy']);
+
+        // Payouts
+        Route::post('/payouts/request', [DriverController::class, 'requestPayout']);
+
+        // Shift Management
+        Route::post('/shift/start', [DriverController::class, 'clockIn']);
+        Route::post('/shift/end', [DriverController::class, 'clockOut']);
+
+        // Legacy endpoints (backward compatibility)
+        Route::get('/assignments', [DriverController::class, 'myAssignments']);
+        Route::post('/log-swap', [DriverController::class, 'logSwap']);
+        Route::get('/swaps', [DriverController::class, 'mySwaps']);
+        Route::post('/report-maintenance', [DriverController::class, 'reportMaintenance']);
+        Route::get('/maintenance-reports', [DriverController::class, 'myMaintenanceReports']);
+    });
 
     // Token management (investor minting moved to trovotech routes with operator restriction above for on-chain); local token show/transfer allowed to all authenticated roles for now
     Route::get('/token/{id}', [TokenController::class, 'show'])->middleware('role:investor,operator');

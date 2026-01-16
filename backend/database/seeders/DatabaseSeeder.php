@@ -18,6 +18,8 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             UserSeeder::class,
+            WalletTransactionSeeder::class,
+            AssetSeeder::class,
         ]);
 
         $this->command->info('✅ FleetFi Database Seeding Complete!');

@@ -43,7 +43,7 @@ class HealthController extends Controller
         }
 
         $version = config('app.version', '0.1.0');
-        $gitHash = trim((string) @exec('git rev-parse --short HEAD')); // may be empty in prod
+        $gitHash = null; // Removed exec() for security
 
         return response()->json([
             'status' => ($dbOk && $cacheOk) ? 'healthy' : 'degraded',
