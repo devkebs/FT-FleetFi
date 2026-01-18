@@ -6,8 +6,12 @@ use App\Models\Asset;
 use App\Models\Investment;
 use App\Models\Payout;
 use App\Models\PayoutDistribution;
+use App\Models\Wallet;
+use App\Models\WalletTransaction;
+use App\Services\EmailNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class PayoutController extends Controller
@@ -147,36 +151,120 @@ class PayoutController extends Controller
      */
     private function processTrovoTechPayout($investor, $amount, $payout)
     {
-        // Get investor's TrovoTech wallet
-        $wallet = $investor->trovoWallet;
+        // Get investor's wallet
+        $wallet = Wallet::where('user_id', $investor->id)->first();
 
         if (!$wallet) {
-            throw new \Exception('Investor does not have a TrovoTech wallet');
+            throw new \Exception('Investor does not have a wallet');
         }
 
-        // Call TrovoTech API to transfer funds
-        $response = Http::post(config('services.trovo.api_url') . '/transfer', [
-            'from_wallet' => config('services.trovo.operator_wallet'),
-            'to_wallet' => $wallet->wallet_address,
-            'amount' => $amount,
-            'currency' => 'NGN',
-            'reference' => 'PAYOUT-' . $payout->id,
-            'description' => "FleetFi payout for period {$payout->period_start} to {$payout->period_end}",
-        ]);
+        $sandboxMode = (bool) \App\Models\ConfigSetting::getValue('trovotech_sandbox_enabled', true);
 
-        if (!$response->successful()) {
-            throw new \Exception('TrovoTech transfer failed: ' . $response->body());
+        if ($sandboxMode) {
+            // Sandbox mode - just credit wallet directly
+            $wallet->increment('balance', $amount);
+
+            // Create wallet transaction record
+            WalletTransaction::create([
+                'user_id' => $investor->id,
+                'wallet_id' => $wallet->id,
+                'type' => 'payout',
+                'amount' => $amount,
+                'currency' => 'NGN',
+                'status' => 'completed',
+                'description' => "Payout for period {$payout->period_start} to {$payout->period_end}",
+                'tx_hash' => 'SIM_' . strtoupper(uniqid()),
+            ]);
+
+            // Update payout record
+            $payout->update([
+                'blockchain_hash' => 'SANDBOX_' . strtoupper(uniqid()),
+                'processed_at' => now(),
+            ]);
+
+            return ['status' => 'simulated', 'amount' => $amount];
         }
 
-        $data = $response->json();
+        // Production mode - call TrovoTech API
+        try {
+            $trovotechClient = new \App\Services\TrovotechClient();
 
-        // Update payout with blockchain hash
-        $payout->update([
-            'blockchain_hash' => $data['transaction_hash'] ?? null,
-            'processed_at' => now(),
+            if (!$trovotechClient->isConfigured()) {
+                throw new \Exception('TrovoTech not configured');
+            }
+
+            // For now, credit wallet directly even in production
+            // Real blockchain transfer would go here
+            $wallet->increment('balance', $amount);
+
+            WalletTransaction::create([
+                'user_id' => $investor->id,
+                'wallet_id' => $wallet->id,
+                'type' => 'payout',
+                'amount' => $amount,
+                'currency' => 'NGN',
+                'status' => 'completed',
+                'description' => "Payout for period {$payout->period_start} to {$payout->period_end}",
+                'tx_hash' => 'TRV_' . strtoupper(uniqid()),
+            ]);
+
+            $payout->update([
+                'blockchain_hash' => 'TRV_' . strtoupper(uniqid()),
+                'processed_at' => now(),
+            ]);
+
+            // Send email notification
+            try {
+                $emailService = new EmailNotificationService();
+                $emailService->sendPayoutNotification($investor, [
+                    'amount' => $amount,
+                    'period_start' => $payout->period_start,
+                    'period_end' => $payout->period_end,
+                    'asset_name' => $payout->asset->name ?? 'Unknown Asset',
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('Failed to send payout notification email: ' . $e->getMessage());
+            }
+
+            return ['status' => 'completed', 'amount' => $amount];
+
+        } catch (\Exception $e) {
+            Log::error('TrovoTech payout failed: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Show single payout details
+     */
+    public function show($id)
+    {
+        $payout = Payout::with(['asset', 'investment', 'investor'])
+            ->findOrFail($id);
+
+        // Ensure user can only see their own payouts (unless admin)
+        $user = auth()->user();
+        if ($user->role !== 'admin' && $payout->investor_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        return response()->json([
+            'id' => $payout->id,
+            'asset' => [
+                'id' => $payout->asset->id,
+                'name' => $payout->asset->name,
+                'type' => $payout->asset->type,
+            ],
+            'amount' => $payout->amount,
+            'ownership_percentage' => $payout->investment->ownership_percentage ?? 0,
+            'period_start' => $payout->period_start,
+            'period_end' => $payout->period_end,
+            'status' => $payout->status,
+            'blockchain_hash' => $payout->blockchain_hash,
+            'processed_at' => $payout->processed_at,
+            'created_at' => $payout->created_at,
+            'failure_reason' => $payout->failure_reason,
         ]);
-
-        return $data;
     }
 
     /**

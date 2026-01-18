@@ -12,6 +12,7 @@ export enum Page {
   SLXMarketplace,
   Riders,
   TrovotechOnboarding,
+  UserProfile,
 }
 
 export type AssetType = 'EV' | 'Battery' | 'Cabinet';

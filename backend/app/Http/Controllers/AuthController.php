@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Wallet;
+use App\Services\EmailNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -20,9 +21,18 @@ class AuthController extends Controller
 		$validator = Validator::make($data, [
 			'name' => 'required|string|max:255',
 			'email' => 'required|email|unique:users,email',
-			'password' => 'required|string|min:6',
+			// Password requirements: min 12 chars, uppercase, lowercase, number, special char
+			'password' => [
+				'required',
+				'string',
+				'min:12',
+				'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#+\-_])[A-Za-z\d@$!%*?&#+\-_]+$/'
+			],
 			'phone' => 'nullable|string|max:20',
 			'role' => 'required|in:investor,operator,driver,admin',
+		], [
+			'password.min' => 'Password must be at least 12 characters long.',
+			'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&#+-).'
 		]);
 
 		if ($validator->fails()) {
@@ -50,6 +60,15 @@ class AuthController extends Controller
 			]);
 
 			DB::commit();
+
+			// Send welcome email (async - won't block registration)
+			try {
+				$emailService = new EmailNotificationService();
+				$emailService->sendWelcomeEmail($user);
+			} catch (\Exception $e) {
+				// Log but don't fail registration if email fails
+				\Log::warning('Failed to send welcome email: ' . $e->getMessage());
+			}
 
 			$token = $user->createToken('api-token')->plainTextToken;
 
@@ -129,7 +148,17 @@ class AuthController extends Controller
 		$validator = Validator::make($request->all(), [
 			'token' => 'required',
 			'email' => 'required|email',
-			'password' => 'required|string|min:8|confirmed',
+			// Password requirements: min 12 chars, uppercase, lowercase, number, special char
+			'password' => [
+				'required',
+				'string',
+				'min:12',
+				'confirmed',
+				'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#+\-_])[A-Za-z\d@$!%*?&#+\-_]+$/'
+			],
+		], [
+			'password.min' => 'Password must be at least 12 characters long.',
+			'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&#+-).'
 		]);
 
 		if ($validator->fails()) {

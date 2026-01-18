@@ -50,8 +50,43 @@ class RouteServiceProvider extends ServiceProvider
      */
     protected function configureRateLimiting()
     {
+        // General API rate limit - 60 requests per minute
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Strict rate limit for authentication endpoints - 5 attempts per minute
+        // Prevents brute force attacks on login/register
+        RateLimiter::for('auth', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip())->response(function () {
+                return response()->json([
+                    'error' => 'Too many attempts',
+                    'message' => 'Too many authentication attempts. Please try again in 1 minute.'
+                ], 429);
+            });
+        });
+
+        // Password reset rate limit - 3 attempts per hour per email/IP
+        // Prevents enumeration and abuse of password reset
+        RateLimiter::for('password-reset', function (Request $request) {
+            $key = $request->input('email', '') . '|' . $request->ip();
+            return Limit::perHour(3)->by($key)->response(function () {
+                return response()->json([
+                    'error' => 'Too many attempts',
+                    'message' => 'Too many password reset requests. Please try again later.'
+                ], 429);
+            });
+        });
+
+        // Sensitive operations rate limit - 10 per minute
+        // For wallet transfers, investments, etc.
+        RateLimiter::for('sensitive', function (Request $request) {
+            return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip())->response(function () {
+                return response()->json([
+                    'error' => 'Too many requests',
+                    'message' => 'Please slow down. Too many requests for sensitive operations.'
+                ], 429);
+            });
         });
     }
 }

@@ -13,6 +13,7 @@ import { SentimentWidget } from './components/SentimentWidget';
 import { getKycStatus } from './services/kyc';
 import { trackEvent, trackMilestone, trackConversion } from './services/analytics';
 import { ConnectivityBanner } from './components/ConnectivityBanner';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 // Lazy load heavy dashboard components for better initial load
 const AboutPage = lazy(() => import('./pages/AboutPage'));
@@ -25,6 +26,7 @@ const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage').then(m => ({ 
 const ESGImpactPage = lazy(() => import('./pages/ESGImpactPage').then(m => ({ default: m.ESGImpactPage })));
 const SLXMarketplace = lazy(() => import('./pages/SLXMarketplace').then(m => ({ default: m.SLXMarketplace })));
 const RidersPage = lazy(() => import('./pages/RidersPage'));
+const UserProfilePage = lazy(() => import('./pages/UserProfilePage').then(m => ({ default: m.UserProfilePage })));
 // const TrovotechOnboardingPage = lazy(() => import('../pages/TrovotechOnboardingPage').then(m => ({ default: m.TrovotechOnboardingPage })));
 
 // Loading component for Suspense fallback
@@ -60,7 +62,7 @@ const App: React.FC = () => {
   const [assetMeta, setAssetMeta] = useState<Omit<Pagination<Asset>, 'data'> | null>(null);
   const [tokens, setTokens] = useState<Token[]>(initialTokens);
   const [payouts, setPayouts] = useState<Payout[]>(initialPayouts);
-  const [slxListings, setSlxListings] = useState<SLXListing[]>(initialSLXListings);
+  const [slxListings, _setSlxListings] = useState<SLXListing[]>(initialSLXListings);
   // Initialize demo mode from localStorage
   useEffect(() => {
     try {
@@ -75,11 +77,13 @@ const App: React.FC = () => {
 
   // Role-based page permission
   const publicPages = [Page.Landing, Page.About, Page.Contact, Page.ESGImpact]; // Accessible to all without login
+  const sharedAuthPages = [Page.UserProfile]; // Pages accessible to any authenticated user
   const pageAllowed = (role: 'investor'|'operator'|'driver'|'admin', page: Page): boolean => {
     const investorPages = [Page.InvestorDashboard, Page.SLXMarketplace];
     const operatorPages = [Page.OperatorDashboard, Page.Riders];
     const driverPages: Page[] = [Page.DriverDashboard];
     const adminPages: Page[] = [Page.AdminDashboard];
+    if (sharedAuthPages.includes(page)) return true; // Any authenticated user can access
     if (investorPages.includes(page)) return role === 'investor';
     if (operatorPages.includes(page)) return role === 'operator';
     if (driverPages.includes(page)) return role === 'driver';
@@ -108,7 +112,8 @@ const App: React.FC = () => {
     const operatorPages = [Page.OperatorDashboard, Page.Riders];
     const driverPages: Page[] = [Page.DriverDashboard];
     const adminPages: Page[] = [Page.AdminDashboard];
-    const protectedPages = [...investorPages, ...operatorPages, ...driverPages, ...adminPages];
+    const sharedPages: Page[] = [Page.UserProfile];
+    const protectedPages = [...investorPages, ...operatorPages, ...driverPages, ...adminPages, ...sharedPages];
     
     // If not authenticated and trying to access protected page
     if (!isAuthenticated && protectedPages.includes(page)) {
@@ -128,6 +133,10 @@ const App: React.FC = () => {
         roleNeeded = 'Driver';
         roleValue = 'driver';
         actionMessage = 'to access driver dashboard';
+      } else if (sharedPages.includes(page)) {
+        roleNeeded = 'User';
+        roleValue = 'investor'; // Default role suggestion
+        actionMessage = 'to access your profile settings';
       } else if (adminPages.includes(page)) {
         roleNeeded = 'Administrator';
         roleValue = 'investor'; // Default for admin
@@ -192,26 +201,6 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [updateTelemetry]);
 
-  const handleMintToken = (assetId: string, fraction: number, investAmount: number) => {
-    const newToken: Token = {
-        id: `TKN-${assetId}-${Date.now()}`,
-        investorId: 'user-001',
-        assetId,
-        fraction,
-        investAmount,
-        roiProjection: investAmount * 0.45,
-        mintedAt: new Date()
-    };
-    setTokens(prev => [...prev, newToken]);
-  };
-
-  const handleSimulateSwap = (assetId: string) => {
-    setAssets(prev => prev.map(asset => asset.id === assetId ? { ...asset, swaps: asset.swaps + 1, dailySwaps: asset.dailySwaps + 1 } : asset));
-  };
-    
-  const handleSimulateCharge = (_assetId: string) => { /* backend integration placeholder */ };
-
-  const handleUpdateStatus = (_assetId: string, _status: string) => { /* backend integration placeholder */ };
 
   // Fetch assets when entering dashboards or changing pagination
   useEffect(() => {
@@ -288,13 +277,6 @@ const App: React.FC = () => {
     emitToast('success', 'Demo Mode Enabled', 'Sample assets, tokens and payouts loaded.');
   };
 
-  const disableDemoMode = () => {
-    setDemoMode(false);
-    setAssets([]);
-    // Keep tokens/payouts but could clear if desired
-    try { localStorage.removeItem('demo_mode'); } catch {}
-    emitToast('info', 'Demo Mode Disabled', 'Switched back to live data (fetch on dashboard entry).');
-  };
 
   const renderPage = () => {
     switch (currentPage) {
@@ -382,6 +364,12 @@ const App: React.FC = () => {
         return (
           <Suspense fallback={<PageLoader />}>
             <SLXMarketplace slxListings={slxListings} assets={assets} />
+          </Suspense>
+        );
+      case Page.UserProfile:
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <UserProfilePage />
           </Suspense>
         );
       default:
@@ -550,6 +538,9 @@ const App: React.FC = () => {
         context={`${Page[currentPage]}_${userRole}`}
         position="bottom-right"
       />
+
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
     </div>
     </ToastProvider>
   );

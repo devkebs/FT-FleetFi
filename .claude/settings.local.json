@@ -14,7 +14,9 @@
       "Bash(php artisan:*)",
       "Bash(php artisan config:clear:*)",
       "Bash(php artisan view:clear:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(dir \"c:\\\\Users\\\\ADMIN\\\\Fleetfi\\\\FT-FleetFi-1\\\\backend\\\\app\\\\Http\\\\Controllers\")",
+      "Bash(npm run build:*)"
     ]
   }
 }

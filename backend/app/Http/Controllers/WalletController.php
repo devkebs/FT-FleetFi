@@ -63,11 +63,37 @@ class WalletController extends Controller
     }
 
     /**
+     * Check if the authenticated user can access another user's wallet
+     * Only admins can access other users' wallets
+     */
+    private function canAccessUserWallet($targetUserId): bool
+    {
+        $user = Auth::user();
+
+        // Users can always access their own wallet
+        if ($targetUserId == $user->id) {
+            return true;
+        }
+
+        // Only admins can access other users' wallets
+        return $user->role === 'admin';
+    }
+
+    /**
      * Get wallet details for a specific user
      */
     public function show($userId = null)
     {
-        $targetUserId = $userId ?? Auth::id();
+        $user = Auth::user();
+        $targetUserId = $userId ?? $user->id;
+
+        // Authorization check - prevent IDOR
+        if (!$this->canAccessUserWallet($targetUserId)) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'You can only access your own wallet'
+            ], 403);
+        }
 
         $wallet = Wallet::where('user_id', $targetUserId)->first();
 
@@ -119,7 +145,16 @@ class WalletController extends Controller
      */
     public function getBalance($userId = null)
     {
-        $targetUserId = $userId ?? Auth::id();
+        $user = Auth::user();
+        $targetUserId = $userId ?? $user->id;
+
+        // Authorization check - prevent IDOR
+        if (!$this->canAccessUserWallet($targetUserId)) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'You can only access your own wallet'
+            ], 403);
+        }
 
         $wallet = Wallet::where('user_id', $targetUserId)->first();
 
@@ -145,7 +180,16 @@ class WalletController extends Controller
      */
     public function getTransactions(Request $request, $userId = null)
     {
-        $targetUserId = $userId ?? Auth::id();
+        $user = Auth::user();
+        $targetUserId = $userId ?? $user->id;
+
+        // Authorization check - prevent IDOR
+        if (!$this->canAccessUserWallet($targetUserId)) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'You can only access your own transactions'
+            ], 403);
+        }
 
         $wallet = Wallet::where('user_id', $targetUserId)->first();
 
@@ -194,7 +238,16 @@ class WalletController extends Controller
      */
     public function getStats($userId = null)
     {
-        $targetUserId = $userId ?? Auth::id();
+        $user = Auth::user();
+        $targetUserId = $userId ?? $user->id;
+
+        // Authorization check - prevent IDOR
+        if (!$this->canAccessUserWallet($targetUserId)) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'You can only access your own wallet statistics'
+            ], 403);
+        }
 
         $wallet = Wallet::where('user_id', $targetUserId)->first();
 

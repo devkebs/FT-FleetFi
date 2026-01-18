@@ -10,7 +10,7 @@ export function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await register({ name, email, password });
+      const response = await register({ name, email, password, role: 'investor' });
       localStorage.setItem('auth_token', response.token);
       // You can add navigation here once you set up routing
       window.location.href = '/dashboard';

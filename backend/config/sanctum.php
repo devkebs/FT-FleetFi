@@ -44,9 +44,12 @@ return [
     | considered expired. If this value is null, personal access tokens do
     | not expire. This won't tweak the lifetime of first-party sessions.
     |
+    | Security: Tokens expire after 24 hours (1440 minutes) to limit the
+    | impact of token theft. Users will need to re-authenticate.
+    |
     */
 
-    'expiration' => null,
+    'expiration' => env('SANCTUM_TOKEN_EXPIRATION', 1440),
 
     /*
     |--------------------------------------------------------------------------

@@ -7,7 +7,7 @@ interface HeaderProps {
   currentPage: Page;
   onPageChange: (page: Page) => void;
   userRole?: 'investor' | 'operator' | 'driver' | 'admin';
-  onRoleSwitch?: () => void; // deprecated once auth is live
+  onRoleSwitch?: () => void; // deprecated once auth is live (unused)
   onLogin?: () => void;
   onRegister?: () => void;
   onLogout?: () => void;
@@ -17,11 +17,11 @@ interface HeaderProps {
   demoMode?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ 
-  currentPage, 
-  onPageChange, 
+export const Header: React.FC<HeaderProps> = ({
+  currentPage,
+  onPageChange,
   userRole,
-  onRoleSwitch,
+  onRoleSwitch: _onRoleSwitch,
   onLogin,
   onRegister,
   onLogout,
@@ -30,9 +30,9 @@ export const Header: React.FC<HeaderProps> = ({
   kycStatus,
   demoMode
 }) => {
+  void _onRoleSwitch; // deprecated - kept for API compatibility
   const allNavItems = [
     { page: Page.Landing, label: 'Home', icon: 'bi-house', roles: ['investor','operator','driver','admin'] },
-    { page: Page.About, label: 'About', icon: 'bi-info-circle', roles: ['investor','operator','driver','admin'] },
     { page: Page.Contact, label: 'Contact', icon: 'bi-envelope', roles: ['investor','operator','driver','admin'] },
     { page: Page.InvestorDashboard, label: 'Investor', icon: 'bi-graph-up', roles: ['investor'] },
     { page: Page.OperatorDashboard, label: 'Operator', icon: 'bi-speedometer2', roles: ['operator'] },
@@ -117,7 +117,15 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                 />
                 
-                <span className="badge bg-light text-dark border"><i className="bi bi-person-circle me-1"/>{userName || 'User'} · {userRole}</span>
+                <button
+                  className="btn btn-sm btn-light border d-flex align-items-center gap-1"
+                  onClick={() => onPageChange(Page.UserProfile)}
+                  title="View Profile Settings"
+                >
+                  <i className="bi bi-person-circle"/>
+                  <span>{userName || 'User'}</span>
+                  <span className="badge bg-secondary ms-1">{userRole}</span>
+                </button>
                 {kycStatus && (userRole === 'investor' || userRole === 'operator') && (
                   <span className={`badge bg-${kycBadgeConfig[kycStatus].bg} text-white`}>
                     <i className={`bi ${kycBadgeConfig[kycStatus].icon} me-1`}/>

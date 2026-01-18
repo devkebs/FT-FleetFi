@@ -94,7 +94,7 @@ export const UserModal: React.FC<UserModalProps> = ({ userId, mode, onClose, onS
           const error = await response.json();
           throw error;
         } else {
-          const text = await response.text();
+          await response.text();
           throw new Error(`Server error: ${response.status}`);
         }
       }
@@ -117,7 +117,7 @@ export const UserModal: React.FC<UserModalProps> = ({ userId, mode, onClose, onS
           const error = await response.json();
           throw error;
         } else {
-          const text = await response.text();
+          await response.text();
           throw new Error(`Server error: ${response.status}`);
         }
       }

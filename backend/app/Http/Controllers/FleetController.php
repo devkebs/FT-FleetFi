@@ -292,4 +292,205 @@ class FleetController extends Controller
             'driver' => $driver,
         ]);
     }
+
+    /**
+     * Create a new swap task
+     */
+    public function createSwapTask(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'station_id' => 'required|exists:swap_stations,id',
+            'vehicle_id' => 'nullable|exists:assets,id',
+            'battery_level_before' => 'nullable|integer|between:0,100',
+            'notes' => 'nullable|string|max:500',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $user = auth()->user();
+        $driver = Driver::where('user_id', $user->id)->first();
+
+        if (!$driver) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Driver profile not found',
+            ], 404);
+        }
+
+        // Check for existing active task
+        $existingTask = $driver->activeSwapTask()->first();
+        if ($existingTask) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You already have an active swap task',
+                'task' => $existingTask->load('swapStation'),
+            ], 400);
+        }
+
+        $station = SwapStation::findOrFail($request->station_id);
+
+        // Create task
+        $task = SwapTask::create([
+            'task_number' => 'SWAP-' . strtoupper(uniqid()),
+            'driver_id' => $driver->id,
+            'vehicle_id' => $request->vehicle_id,
+            'asset_id' => $request->vehicle_id,
+            'swap_station_id' => $station->id,
+            'status' => 'pending',
+            'battery_level_before' => $request->battery_level_before,
+            'notes' => $request->notes,
+        ]);
+
+        // Estimate wait time based on station availability
+        $estimatedWait = $station->available_batteries > 3 ? 5 : ($station->available_batteries > 0 ? 10 : 20);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Swap task created successfully',
+            'task' => $task->load('swapStation'),
+            'estimated_wait' => $estimatedWait,
+        ], 201);
+    }
+
+    /**
+     * Get current authenticated driver's active swap task
+     */
+    public function getMyActiveSwapTask()
+    {
+        $user = auth()->user();
+        $driver = Driver::where('user_id', $user->id)->first();
+
+        if (!$driver) {
+            return response()->json([
+                'has_active_task' => false,
+                'task' => null,
+            ]);
+        }
+
+        $activeTask = SwapTask::where('driver_id', $driver->id)
+            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->with(['swapStation', 'vehicle'])
+            ->first();
+
+        return response()->json([
+            'has_active_task' => $activeTask !== null,
+            'task' => $activeTask,
+        ]);
+    }
+
+    /**
+     * Get current authenticated driver's swap task history
+     */
+    public function getMySwapTaskHistory(Request $request)
+    {
+        $user = auth()->user();
+        $driver = Driver::where('user_id', $user->id)->first();
+
+        if (!$driver) {
+            return response()->json([
+                'tasks' => [],
+                'total' => 0,
+                'current_page' => 1,
+                'last_page' => 1,
+            ]);
+        }
+
+        $perPage = $request->input('per_page', 10);
+        $status = $request->input('status');
+
+        $query = SwapTask::where('driver_id', $driver->id)
+            ->with(['swapStation', 'vehicle'])
+            ->orderBy('created_at', 'desc');
+
+        if ($status && $status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        $tasks = $query->paginate($perPage);
+
+        return response()->json([
+            'tasks' => $tasks->items(),
+            'total' => $tasks->total(),
+            'current_page' => $tasks->currentPage(),
+            'last_page' => $tasks->lastPage(),
+        ]);
+    }
+
+    /**
+     * Get current authenticated driver's swap statistics
+     */
+    public function getMySwapStats()
+    {
+        $user = auth()->user();
+        $driver = Driver::where('user_id', $user->id)->first();
+
+        if (!$driver) {
+            return response()->json([
+                'today' => ['count' => 0, 'avg_duration' => 0],
+                'this_week' => ['count' => 0, 'avg_duration' => 0],
+                'this_month' => ['count' => 0, 'avg_duration' => 0],
+                'lifetime' => ['count' => 0, 'total_bonuses' => 0],
+            ]);
+        }
+
+        // Today's stats
+        $todayTasks = SwapTask::where('driver_id', $driver->id)
+            ->where('status', 'completed')
+            ->whereDate('completed_at', today())
+            ->get();
+
+        $todayAvgDuration = $todayTasks->avg('duration_minutes') ?? 0;
+
+        // This week's stats
+        $weekTasks = SwapTask::where('driver_id', $driver->id)
+            ->where('status', 'completed')
+            ->whereBetween('completed_at', [now()->startOfWeek(), now()])
+            ->get();
+
+        $weekAvgDuration = $weekTasks->avg('duration_minutes') ?? 0;
+
+        // This month's stats
+        $monthTasks = SwapTask::where('driver_id', $driver->id)
+            ->where('status', 'completed')
+            ->whereBetween('completed_at', [now()->startOfMonth(), now()])
+            ->get();
+
+        $monthAvgDuration = $monthTasks->avg('duration_minutes') ?? 0;
+
+        // Lifetime stats
+        $lifetimeTasks = SwapTask::where('driver_id', $driver->id)
+            ->where('status', 'completed')
+            ->count();
+
+        // Total bonuses from swap earnings
+        $totalBonuses = \App\Models\DriverEarning::where('driver_id', $driver->id)
+            ->where('source_type', 'swap')
+            ->sum('net_amount');
+
+        return response()->json([
+            'today' => [
+                'count' => $todayTasks->count(),
+                'avg_duration' => round($todayAvgDuration, 1),
+            ],
+            'this_week' => [
+                'count' => $weekTasks->count(),
+                'avg_duration' => round($weekAvgDuration, 1),
+            ],
+            'this_month' => [
+                'count' => $monthTasks->count(),
+                'avg_duration' => round($monthAvgDuration, 1),
+            ],
+            'lifetime' => [
+                'count' => $lifetimeTasks,
+                'total_bonuses' => round($totalBonuses, 2),
+            ],
+        ]);
+    }
 }

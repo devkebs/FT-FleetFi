@@ -55,8 +55,9 @@ export const TelemetryWidget: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map'>('grid');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'charging' | 'idle'>('all');
 
-  // Custom map icons for different statuses
-  const getMarkerIcon = (status: string, batteryLevel: number) => {
+  // Custom map icons for different statuses (used by Leaflet markers)
+  // Currently unused but needed for map view implementation
+  void function getMarkerIcon(status: string, batteryLevel: number) {
     const getColor = () => {
       if (status === 'in_use' || status === 'active') return '#28a745';
       if (status === 'charging') return '#ffc107';

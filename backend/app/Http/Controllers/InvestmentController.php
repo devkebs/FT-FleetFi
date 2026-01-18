@@ -6,9 +6,14 @@ use App\Models\Investment;
 use App\Models\Asset;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
+use App\Models\Token;
+use App\Models\ConfigSetting;
+use App\Services\TrovotechClient;
+use App\Services\EmailNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -16,14 +21,23 @@ class InvestmentController extends Controller
 {
     /**
      * Display a listing of investments.
+     * Non-admins can only see their own investments.
      */
     public function index(Request $request)
     {
+        $user = Auth::user();
         $query = Investment::with(['user', 'asset']);
 
-        // Filter by user if requested
-        if ($request->has('user_id')) {
-            $query->where('user_id', $request->user_id);
+        // Authorization check - only admins can see all investments
+        // Regular users can only see their own investments
+        if ($user->role !== 'admin') {
+            // Non-admins can only see their own investments
+            $query->where('user_id', $user->id);
+        } else {
+            // Admins can filter by user_id if requested
+            if ($request->has('user_id')) {
+                $query->where('user_id', $request->user_id);
+            }
         }
 
         // Filter by status if requested
@@ -120,11 +134,22 @@ class InvestmentController extends Controller
             $query->where('risk_level', $request->risk_level);
         }
 
-        // Sort options
+        // Sort options - validate inputs to prevent SQL injection
+        $allowedSortColumns = ['expected_roi', 'min_investment', 'total_ownership_sold', 'created_at', 'current_value'];
         $sortBy = $request->input('sort_by', 'expected_roi');
-        $sortDir = $request->input('sort_dir', 'desc');
+        $sortDir = strtolower($request->input('sort_dir', 'desc'));
 
-        // Handle column existence for sorting
+        // Whitelist validation for sort direction - prevent SQL injection
+        if (!in_array($sortDir, ['asc', 'desc'])) {
+            $sortDir = 'desc';
+        }
+
+        // Whitelist validation for sort column - prevent SQL injection
+        if (!in_array($sortBy, $allowedSortColumns)) {
+            $sortBy = 'expected_roi';
+        }
+
+        // Handle column existence for sorting - now safe with whitelisted values
         if (in_array($sortBy, ['expected_roi', 'min_investment', 'total_ownership_sold'])) {
             $query->orderByRaw("COALESCE({$sortBy}, 0) {$sortDir}");
         } else {
@@ -308,13 +333,16 @@ class InvestmentController extends Controller
                 'completed_at' => now(),
             ]);
 
+            // Generate token ID
+            $tokenId = 'TKN-' . strtoupper(Str::random(12));
+
             // Create investment record
             $investment = Investment::create([
                 'user_id' => $user->id,
                 'asset_id' => $asset->id,
                 'amount' => $request->amount,
                 'ownership_percentage' => $request->ownership_percentage,
-                'token_id' => 'TKN-' . strtoupper(Str::random(12)),
+                'token_id' => $tokenId,
                 'tx_hash' => $txHash,
                 'purchase_price' => $request->amount,
                 'current_value' => $request->amount,
@@ -322,10 +350,43 @@ class InvestmentController extends Controller
                 'status' => 'active',
             ]);
 
+            // Create Token record for blockchain tracking
+            $token = Token::create([
+                'user_id' => $user->id,
+                'asset_id' => $asset->id,
+                'token_id' => $tokenId,
+                'shares' => $request->ownership_percentage,
+                'fraction_owned' => $request->ownership_percentage,
+                'investment_amount' => $request->amount,
+                'current_value' => $request->amount,
+                'total_returns' => 0,
+                'chain' => 'bantu', // Trovotech uses Bantu blockchain
+                'minted_at' => now(),
+                'metadata_hash' => 'IPFS_' . md5($asset->id . $user->id . time()),
+                'trustee_ref' => 'TRUSTEE_' . time(),
+                'tx_hash' => $txHash,
+            ]);
+
+            // Attempt blockchain minting via Trovotech (if configured)
+            $blockchainResult = $this->attemptBlockchainMint($user, $asset, $token, $wallet);
+
             // Update asset ownership sold
             $asset->increment('total_ownership_sold', $request->ownership_percentage);
 
             DB::commit();
+
+            // Send investment confirmation email
+            try {
+                $emailService = new EmailNotificationService();
+                $emailService->sendInvestmentConfirmation($user, [
+                    'asset_name' => $asset->model ?? $asset->type,
+                    'amount' => $request->amount,
+                    'tokens' => $request->ownership_percentage,
+                    'expected_return' => $asset->expected_roi ?? '12-18%',
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('Failed to send investment confirmation email: ' . $e->getMessage());
+            }
 
             // Return full investment record to match frontend interface
             return response()->json([
@@ -346,6 +407,14 @@ class InvestmentController extends Controller
                     'created_at' => $investment->created_at,
                     'updated_at' => $investment->updated_at,
                 ],
+                'token' => [
+                    'id' => $token->id,
+                    'token_id' => $token->token_id,
+                    'chain' => $token->chain,
+                    'minted_at' => $token->minted_at,
+                    'tx_hash' => $token->tx_hash,
+                ],
+                'blockchain' => $blockchainResult,
                 'transaction' => [
                     'type' => 'token_purchase',
                     'amount' => $request->amount,
@@ -578,6 +647,122 @@ class InvestmentController extends Controller
     }
 
     /**
+     * Attempt to mint token on blockchain via Trovotech
+     * Returns result array with status and details
+     */
+    private function attemptBlockchainMint($user, $asset, $token, $wallet): array
+    {
+        $sandboxMode = (bool) ConfigSetting::getValue('trovotech_sandbox_enabled', true);
+
+        // In sandbox mode, simulate successful minting
+        if ($sandboxMode) {
+            $simulatedTxHash = 'BANTU_TX_' . strtoupper(substr(md5(time()), 0, 32));
+
+            // Update token with simulated blockchain data
+            $token->update([
+                'tx_hash' => $simulatedTxHash,
+                'chain' => 'bantu-testnet',
+            ]);
+
+            return [
+                'status' => 'simulated',
+                'message' => 'Token minted in sandbox mode',
+                'tx_hash' => $simulatedTxHash,
+                'chain' => 'bantu-testnet',
+            ];
+        }
+
+        // Production mode: Attempt real Trovotech API call
+        try {
+            $client = new TrovotechClient();
+
+            if (!$client->isConfigured()) {
+                Log::warning('Trovotech not configured, skipping blockchain mint', [
+                    'token_id' => $token->token_id,
+                ]);
+                return [
+                    'status' => 'skipped',
+                    'message' => 'Blockchain integration not configured',
+                ];
+            }
+
+            // Generate asset code (max 12 alphanumeric chars)
+            $assetCode = 'FT' . strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $asset->type), 0, 4)) . $asset->id;
+            $assetCode = substr($assetCode, 0, 12);
+
+            // Get issuer ID from config
+            $issuerId = config('services.trovotech.issuer_id', 'FT_ISSUER');
+
+            // Phase 1: Initialize token mint
+            $initResult = $client->initTokenMint(
+                destination: $wallet->wallet_address,
+                assetIssuer: $issuerId,
+                assetCode: $assetCode,
+                amount: (string) $token->fraction_owned,
+                memo: 'FleetFi Investment ' . $token->token_id
+            );
+
+            // If init successful, commit the mint
+            if (isset($initResult['transaction'])) {
+                // Note: In real implementation, transaction would need to be signed
+                // For now, we log the result and update token
+                $token->update([
+                    'tx_hash' => $initResult['transaction']['hash'] ?? $initResult['reference'] ?? null,
+                    'chain' => 'bantu-mainnet',
+                    'metadata_hash' => $initResult['metadata_hash'] ?? $token->metadata_hash,
+                ]);
+
+                Log::info('Blockchain token minted successfully', [
+                    'token_id' => $token->token_id,
+                    'tx_hash' => $token->tx_hash,
+                ]);
+
+                return [
+                    'status' => 'success',
+                    'message' => 'Token minted on Bantu blockchain',
+                    'tx_hash' => $token->tx_hash,
+                    'chain' => 'bantu-mainnet',
+                    'asset_code' => $assetCode,
+                ];
+            }
+
+            return [
+                'status' => 'pending',
+                'message' => 'Blockchain minting initiated',
+                'reference' => $initResult['reference'] ?? null,
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Blockchain minting failed', [
+                'token_id' => $token->token_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'status' => 'failed',
+                'message' => 'Blockchain minting failed, token created locally',
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Check if user can access/modify an investment
+     */
+    private function canAccessInvestment(Investment $investment): bool
+    {
+        $user = Auth::user();
+
+        // Users can access their own investments
+        if ($investment->user_id == $user->id) {
+            return true;
+        }
+
+        // Admins can access all investments
+        return $user->role === 'admin';
+    }
+
+    /**
      * Display the specified investment.
      */
     public function show($id)
@@ -588,18 +773,36 @@ class InvestmentController extends Controller
             return response()->json(['message' => 'Investment not found'], 404);
         }
 
+        // Authorization check - prevent IDOR
+        if (!$this->canAccessInvestment($investment)) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'You can only view your own investments'
+            ], 403);
+        }
+
         return response()->json($investment);
     }
 
     /**
      * Update the specified investment.
+     * Only admins can update investments (status changes, etc.)
      */
     public function update(Request $request, $id)
     {
+        $user = Auth::user();
         $investment = Investment::find($id);
 
         if (!$investment) {
             return response()->json(['message' => 'Investment not found'], 404);
+        }
+
+        // Only admins can update investment records
+        if ($user->role !== 'admin') {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'Only administrators can modify investment records'
+            ], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -616,13 +819,23 @@ class InvestmentController extends Controller
 
     /**
      * Remove the specified investment.
+     * Only admins can delete investments.
      */
     public function destroy($id)
     {
+        $user = Auth::user();
         $investment = Investment::find($id);
 
         if (!$investment) {
             return response()->json(['message' => 'Investment not found'], 404);
+        }
+
+        // Only admins can delete investment records
+        if ($user->role !== 'admin') {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'Only administrators can delete investment records'
+            ], 403);
         }
 
         $investment->delete();

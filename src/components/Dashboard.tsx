@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { logout } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,7 +6,7 @@ import { LoadingSpinner } from './LoadingSpinner';
 
 export function Dashboard() {
   const { user, setUser } = useAuth();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [, setIsLoggingOut] = useState(false);
   const navigate = useNavigate();
 
   const handleLogout = async () => {

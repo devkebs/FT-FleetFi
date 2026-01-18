@@ -43,14 +43,23 @@ use App\Http\Controllers\PortfolioController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\DriverController;
+use App\Http\Controllers\ContactController;
 
 // Public routes
 Route::get('/ping', [HealthController::class, 'ping']);
 Route::get('/health', [HealthController::class, 'health']);
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+
+// Authentication routes with rate limiting to prevent brute force attacks
+Route::middleware('throttle:auth')->group(function () {
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']);
+});
+
+// Password reset routes with stricter rate limiting
+Route::middleware('throttle:password-reset')->group(function () {
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+});
 
 // Public vehicle listing (for display purposes)
 Route::get('/vehicles', [VehicleController::class, 'index']);
@@ -67,6 +76,9 @@ Route::post('/webhooks/trovotech', [TrovotechWebhookController::class, 'handle']
 // Payment gateway webhooks
 Route::post('/webhooks/paystack', [PaymentController::class, 'paystackWebhook']);
 Route::post('/webhooks/flutterwave', [PaymentController::class, 'flutterwaveWebhook']);
+
+// Contact form (public - rate limited)
+Route::post('/contact', [ContactController::class, 'store']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -118,6 +130,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('payments')->group(function () {
         Route::post('/initialize', [PaymentController::class, 'initializePayment']);
         Route::post('/verify', [PaymentController::class, 'verifyPayment']);
+        Route::post('/fund-wallet', [PaymentController::class, 'fundWallet']);
+        Route::post('/withdraw', [PaymentController::class, 'withdraw']);
+        Route::get('/history', [PaymentController::class, 'history']);
+        Route::get('/calculate-fee', [PaymentController::class, 'calculateFee']);
+    });
+
+    // Payment methods (bank accounts, cards)
+    Route::prefix('payment-methods')->group(function () {
+        Route::get('/banks', [\App\Http\Controllers\PaymentMethodController::class, 'getBanks']);
+        Route::post('/verify-account', [\App\Http\Controllers\PaymentMethodController::class, 'verifyAccount']);
+        Route::get('/', [\App\Http\Controllers\PaymentMethodController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\PaymentMethodController::class, 'store']);
+        Route::patch('/{id}/default', [\App\Http\Controllers\PaymentMethodController::class, 'setDefault']);
+        Route::delete('/{id}', [\App\Http\Controllers\PaymentMethodController::class, 'destroy']);
     });
 
     // Operations & revenue endpoints (simulation layer) - read-only for most roles
@@ -150,16 +176,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/assets', [AssetController::class, 'index'])->middleware('role:investor,operator,admin');
 
     // Token & wallet: investor and operator can view their tokens/wallet
-    Route::post('/wallet/create', [WalletController::class, 'create'])->middleware('role:investor,operator,driver');
+    // Read operations - standard rate limit
     Route::get('/wallet/me', [WalletController::class, 'myWallet'])->middleware('role:investor,operator,driver');
     Route::get('/wallet/me/stats', [WalletController::class, 'getStats'])->middleware('role:investor,operator,driver');
-    Route::get('/wallet/{userId}', [WalletController::class, 'show'])->middleware('role:investor,operator,driver');
-    Route::get('/wallet/{userId}/balance', [WalletController::class, 'getBalance'])->middleware('role:investor,operator,driver');
-    Route::get('/wallet/{userId}/transactions', [WalletController::class, 'getTransactions'])->middleware('role:investor,operator,driver');
-    Route::get('/wallet/{userId}/stats', [WalletController::class, 'getStats'])->middleware('role:investor,operator,driver');
-    Route::post('/wallet/transfer', [WalletController::class, 'transfer'])->middleware('role:investor,operator');
-    Route::post('/wallet/deposit', [WalletController::class, 'deposit'])->middleware('role:investor,operator,driver');
-    Route::post('/wallet/withdraw', [WalletController::class, 'withdraw'])->middleware('role:investor,operator,driver');
+    Route::get('/wallet/{userId}', [WalletController::class, 'show'])->middleware('role:investor,operator,driver,admin');
+    Route::get('/wallet/{userId}/balance', [WalletController::class, 'getBalance'])->middleware('role:investor,operator,driver,admin');
+    Route::get('/wallet/{userId}/transactions', [WalletController::class, 'getTransactions'])->middleware('role:investor,operator,driver,admin');
+    Route::get('/wallet/{userId}/stats', [WalletController::class, 'getStats'])->middleware('role:investor,operator,driver,admin');
+
+    // Sensitive wallet operations - stricter rate limit to prevent abuse
+    Route::middleware(['throttle:sensitive'])->group(function () {
+        Route::post('/wallet/create', [WalletController::class, 'create'])->middleware('role:investor,operator,driver');
+        Route::post('/wallet/transfer', [WalletController::class, 'transfer'])->middleware('role:investor,operator');
+        Route::post('/wallet/deposit', [WalletController::class, 'deposit'])->middleware('role:investor,operator,driver');
+        Route::post('/wallet/withdraw', [WalletController::class, 'withdraw'])->middleware('role:investor,operator,driver');
+    });
 
     // =========================================================================
     // DRIVER ROUTES - Trip & Earnings Tracking
@@ -293,6 +324,30 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/bulk-action', [\App\Http\Controllers\UserManagementController::class, 'bulkAction']);
             Route::get('/export/csv', [\App\Http\Controllers\UserManagementController::class, 'exportCsv']);
         });
+
+        // Payment Administration
+        Route::prefix('payments')->group(function () {
+            Route::get('/overview', [AdminDashboardController::class, 'paymentOverview']);
+            Route::get('/records', [AdminDashboardController::class, 'getPaymentRecords']);
+            Route::get('/records/{id}', [AdminDashboardController::class, 'getPaymentRecord']);
+            Route::post('/records/{id}/retry', [AdminDashboardController::class, 'retryPayment']);
+            Route::post('/withdrawals/{id}/approve', [AdminDashboardController::class, 'approveWithdrawal']);
+            Route::post('/withdrawals/{id}/reject', [AdminDashboardController::class, 'rejectWithdrawal']);
+            Route::get('/methods', [AdminDashboardController::class, 'getAllPaymentMethods']);
+            Route::delete('/methods/{id}', [AdminDashboardController::class, 'deletePaymentMethod']);
+            Route::get('/gateway-status', [AdminDashboardController::class, 'getPaymentGatewayStatus']);
+            Route::get('/users/{userId}', [AdminDashboardController::class, 'getUserPayments']);
+            Route::get('/export', [AdminDashboardController::class, 'exportPayments']);
+        });
+
+        // Contact Messages Administration
+        Route::prefix('contacts')->group(function () {
+            Route::get('/', [ContactController::class, 'index']);
+            Route::get('/{id}', [ContactController::class, 'show']);
+            Route::patch('/{id}/status', [ContactController::class, 'updateStatus']);
+            Route::delete('/{id}', [ContactController::class, 'destroy']);
+            Route::post('/bulk-status', [ContactController::class, 'bulkUpdateStatus']);
+        });
     });
 
     // TrovoTech public/auth investor/operator endpoints separated for clarity
@@ -343,6 +398,39 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
         Route::delete('/{id}', [NotificationController::class, 'destroy']);
         Route::delete('/delete-all-read', [NotificationController::class, 'deleteAllRead']);
+    });
+
+    // =========================================================================
+    // EXPORT ROUTES - Data Export Features
+    // =========================================================================
+    Route::prefix('export')->group(function () {
+        // Portfolio export (investors)
+        Route::get('/portfolio.csv', [ExportController::class, 'portfolioCsv'])->middleware('role:investor,operator');
+
+        // Transaction export (all authenticated users)
+        Route::get('/transactions.csv', [ExportController::class, 'transactionsCsv']);
+
+        // Earnings export (drivers)
+        Route::get('/earnings.csv', [ExportController::class, 'earningsCsv'])->middleware('role:driver,operator');
+
+        // Fleet report export (operators/admin)
+        Route::get('/fleet.csv', [ExportController::class, 'fleetCsv'])->middleware('role:operator,admin');
+
+        // Payouts export (investors)
+        Route::get('/payouts.csv', [ExportController::class, 'payoutsCsv'])->middleware('role:investor,operator');
+    });
+
+    // =========================================================================
+    // PAYOUT ROUTES - Revenue Distribution
+    // =========================================================================
+    Route::prefix('payouts')->group(function () {
+        // Investor payout view
+        Route::get('/my', [PayoutController::class, 'getInvestorPayouts'])->middleware('role:investor,operator');
+
+        // Operator payout management
+        Route::get('/assets', [PayoutController::class, 'getAssetsForPayout'])->middleware('role:operator,admin');
+        Route::post('/distribute', [PayoutController::class, 'distributePayout'])->middleware('role:operator,admin');
+        Route::get('/history', [PayoutController::class, 'getPayoutHistory'])->middleware('role:operator,admin');
     });
 });
 

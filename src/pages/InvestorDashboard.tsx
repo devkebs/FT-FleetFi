@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Asset, Token, Payout } from '../types';
 import { createWallet, getWallet, mintAssetToken, getMyTokens, WalletResponse, TokenMintResponse } from '../services/trovotech';
-import { fetchRevenueSummary, RevenueBreakdown as RevenueBreakdownType, InvestmentAPI } from '../services/api';
+import { fetchRevenueSummary, RevenueBreakdown as RevenueBreakdownType } from '../services/api';
 import { PortfolioSummary } from '../components/PortfolioSummary';
 import { PortfolioPerformance } from '../components/PortfolioPerformance';
 import { TransactionHistory } from '../components/TransactionHistory';

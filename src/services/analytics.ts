@@ -39,7 +39,8 @@ const getDeviceInfo = () => {
 // Track page views
 let pageViewCount = 0;
 let interactionCount = 0;
-let sessionStartTime = Date.now();
+const _sessionStartTime = Date.now();
+void _sessionStartTime; // Session start time tracked for analytics
 
 /**
  * Analytics Service

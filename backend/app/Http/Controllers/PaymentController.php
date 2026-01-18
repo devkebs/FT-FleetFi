@@ -9,9 +9,113 @@ use App\Models\User;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
 use App\Models\AuditLog;
+use App\Models\PaymentRecord;
+use App\Services\PaymentService;
 
 class PaymentController extends Controller
 {
+    protected PaymentService $paymentService;
+
+    public function __construct(PaymentService $paymentService)
+    {
+        $this->paymentService = $paymentService;
+    }
+
+    /**
+     * Initialize wallet funding
+     */
+    public function fundWallet(Request $request)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:100|max:10000000',
+            'gateway' => 'required|in:paystack,flutterwave',
+        ]);
+
+        $user = $request->user();
+        $result = $this->paymentService->initializeFunding(
+            $user,
+            $request->amount,
+            $request->gateway
+        );
+
+        if ($result['success']) {
+            return response()->json($result);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => $result['error'] ?? 'Failed to initialize payment',
+        ], 400);
+    }
+
+    /**
+     * Process withdrawal
+     */
+    public function withdraw(Request $request)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:1000|max:10000000',
+            'payment_method_id' => 'required|integer|exists:payment_methods,id',
+        ]);
+
+        $user = $request->user();
+        $result = $this->paymentService->processWithdrawal(
+            $user,
+            $request->amount,
+            $request->payment_method_id
+        );
+
+        if ($result['success']) {
+            return response()->json($result);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => $result['error'] ?? 'Withdrawal failed',
+        ], 400);
+    }
+
+    /**
+     * Get payment history
+     */
+    public function history(Request $request)
+    {
+        $user = $request->user();
+        $limit = $request->input('limit', 20);
+
+        $history = $this->paymentService->getPaymentHistory($user, $limit);
+
+        return response()->json([
+            'success' => true,
+            'payments' => $history,
+        ]);
+    }
+
+    /**
+     * Calculate payment fee
+     */
+    public function calculateFee(Request $request)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:100',
+            'gateway' => 'required|in:paystack,flutterwave',
+            'type' => 'required|in:funding,withdrawal',
+        ]);
+
+        $fee = $this->paymentService->calculateFee(
+            $request->amount,
+            $request->gateway,
+            $request->type
+        );
+
+        return response()->json([
+            'success' => true,
+            'amount' => $request->amount,
+            'fee' => $fee,
+            'net_amount' => $request->amount - $fee,
+        ]);
+    }
+
     /**
      * Verify payment from Paystack or Flutterwave
      */

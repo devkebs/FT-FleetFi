@@ -55,5 +55,17 @@ Route::middleware('auth:sanctum')->group(function () {
         // Swap stations
         Route::get('/swap-stations/nearby', [FleetController::class, 'getNearbySwapStations'])
             ->middleware('role:driver');
+
+        // Create new swap task
+        Route::post('/swap-tasks', [FleetController::class, 'createSwapTask'])
+            ->middleware('role:driver');
+
+        // Current driver's active task and history (convenience routes using 'me')
+        Route::get('/drivers/me/active-task', [FleetController::class, 'getMyActiveSwapTask'])
+            ->middleware('role:driver');
+        Route::get('/drivers/me/swap-tasks', [FleetController::class, 'getMySwapTaskHistory'])
+            ->middleware('role:driver');
+        Route::get('/drivers/me/swap-stats', [FleetController::class, 'getMySwapStats'])
+            ->middleware('role:driver');
     });
 });

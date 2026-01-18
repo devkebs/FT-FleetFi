@@ -86,15 +86,6 @@ export const PortfolioSummary: React.FC = () => {
     return icons[type] || 'bi-box';
   };
 
-  const getRiskBadgeClass = (risk: string) => {
-    const classes: Record<string, string> = {
-      low: 'bg-success',
-      medium: 'bg-warning text-dark',
-      high: 'bg-danger',
-    };
-    return classes[risk] || 'bg-secondary';
-  };
-
   return (
     <div>
       {/* Overall Metrics */}

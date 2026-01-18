@@ -98,7 +98,7 @@ export const WalletWidget: React.FC<WalletWidgetProps> = ({
 
     try {
       setProcessing(true);
-      const result = await WalletAPI.transfer(transferTo, amount, 'Transfer from wallet');
+      await WalletAPI.transfer(transferTo, amount, 'Transfer from wallet');
       emitToast('success', 'Transfer Successful', `Sent ₦${amount.toLocaleString()}`);
       setActiveModal(null);
       setTransferTo('');

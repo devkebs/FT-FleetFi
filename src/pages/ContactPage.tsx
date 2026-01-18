@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Page } from '../types';
+import { submitContactForm, ContactFormData } from '../services/api';
 
 interface ContactPageProps {
   onNavigate?: (page: Page) => void;
@@ -15,6 +16,8 @@ const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
   });
 
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -22,17 +25,37 @@ const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
       ...prev,
       [name]: value,
     }));
+    // Clear error when user starts typing
+    if (error) setError(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement form submission logic
-    console.log('Form submitted:', formData);
-    setSubmitted(true);
-    setTimeout(() => {
-      setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
-      setSubmitted(false);
-    }, 3000);
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const contactData: ContactFormData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        subject: formData.subject as ContactFormData['subject'],
+        message: formData.message,
+      };
+
+      await submitContactForm(contactData);
+      setSubmitted(true);
+
+      // Reset form after 5 seconds
+      setTimeout(() => {
+        setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+        setSubmitted(false);
+      }, 5000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to submit your message. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleBackToAbout = () => {
@@ -122,6 +145,14 @@ const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                     </div>
                   )}
 
+                  {error && (
+                    <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                      <i className="bi bi-exclamation-triangle me-2"></i>
+                      {error}
+                      <button type="button" className="btn-close" onClick={() => setError(null)}></button>
+                    </div>
+                  )}
+
                   <form onSubmit={handleSubmit}>
                     <div className="mb-3">
                       <label htmlFor="name" className="form-label">Full Name *</label>
@@ -193,8 +224,24 @@ const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                       ></textarea>
                     </div>
 
-                    <button type="submit" className="btn btn-primary btn-lg w-100 mb-3">
-                      Send Message
+                    <button
+                      type="submit"
+                      className="btn btn-primary btn-lg w-100 mb-3"
+                      disabled={submitting || submitted}
+                    >
+                      {submitting ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Sending...
+                        </>
+                      ) : submitted ? (
+                        <>
+                          <i className="bi bi-check-circle me-2"></i>
+                          Message Sent!
+                        </>
+                      ) : (
+                        'Send Message'
+                      )}
                     </button>
                     <button type="button" onClick={handleBackToAbout} className="btn btn-outline-secondary w-100">
                       Back to About

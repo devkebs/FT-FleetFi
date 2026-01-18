@@ -68,7 +68,8 @@ interface LandingPageProps {
   onAdminLogin?: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister, onAdminLogin }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister: _onRegister, onAdminLogin }) => {
+  void _onRegister; // Registration handled through auth modal
   // ========== STATE MANAGEMENT ==========
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
@@ -238,6 +239,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister, onAdminL
 
             {/* Navigation Links */}
             <div className="nav-menu">
+              <button onClick={() => scrollTo('about')} className="nav-link">About Us</button>
               <button onClick={() => scrollTo('problem')} className="nav-link">Challenge</button>
               <button onClick={() => scrollTo('solution')} className="nav-link">Solution</button>
               <button onClick={() => scrollTo('how-it-works')} className="nav-link">How It Works</button>
@@ -293,6 +295,63 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister, onAdminL
               <StatCard value="100%" label="Electric Fleet" />
               <StatCard value="24/7" label="Battery Swap Access" />
               <StatCard value="0%" label="Upfront Cost" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================
+          ABOUT US SECTION
+      ============================================================ */}
+      <section className="page-section section-alt" id="about">
+        <div className="section-container">
+          <div className="section-header">
+            <span className="section-tag">About Us</span>
+            <h2 className="section-heading">Powering Africa's Clean Mobility Future</h2>
+            <p className="section-description">
+              FleetFi is a product of Freenergy Tech, a Nigerian cleantech company dedicated to
+              accelerating the transition to sustainable transportation across Africa.
+            </p>
+          </div>
+
+          <div className="features-grid">
+            <FeatureCard
+              icon="🎯"
+              title="Our Mission"
+              description="To make electric mobility accessible and profitable for transport microenterprises, reducing emissions while increasing earnings."
+            />
+            <FeatureCard
+              icon="👁️"
+              title="Our Vision"
+              description="A future where every commercial vehicle in Africa is electric, clean, and contributes to sustainable livelihoods."
+            />
+            <FeatureCard
+              icon="💡"
+              title="Our Approach"
+              description="Combining tokenized asset ownership, battery swap infrastructure, and pay-as-you-earn models to remove barriers to EV adoption."
+            />
+          </div>
+
+          <div className="about-details" style={{ marginTop: '3rem', textAlign: 'center' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '2rem',
+              maxWidth: '800px',
+              margin: '0 auto'
+            }}>
+              <div>
+                <h4 style={{ color: 'var(--primary-color)', marginBottom: '0.5rem' }}>Founded</h4>
+                <p style={{ fontSize: '1.1rem' }}>2023 in Lagos, Nigeria</p>
+              </div>
+              <div>
+                <h4 style={{ color: 'var(--primary-color)', marginBottom: '0.5rem' }}>Focus</h4>
+                <p style={{ fontSize: '1.1rem' }}>Electric 2 & 3-wheelers</p>
+              </div>
+              <div>
+                <h4 style={{ color: 'var(--primary-color)', marginBottom: '0.5rem' }}>Technology</h4>
+                <p style={{ fontSize: '1.1rem' }}>Battery Swap & Tokenization</p>
+              </div>
             </div>
           </div>
         </div>
@@ -577,10 +636,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister, onAdminL
                 <li><button onClick={() => scrollTo('impact')}>Impact</button></li>
               </ul>
             </div>
-            
+
             <div className="footer-column">
               <h4 className="footer-heading">Company</h4>
               <ul className="footer-menu">
+                <li><button onClick={() => scrollTo('about')}>About Us</button></li>
                 <li><button onClick={() => scrollTo('contact')}>Contact</button></li>
                 <li><button onClick={goToLogin}>Login</button></li>
               </ul>

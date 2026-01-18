@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Wallet, RefreshCw, ArrowUpRight, ArrowDownLeft, Send } from 'lucide-react';
+import { Wallet, RefreshCw, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { WalletAPI, WalletData, WalletTransaction, WalletStats } from '../services/api';
 
 interface WalletBalanceWidgetProps {

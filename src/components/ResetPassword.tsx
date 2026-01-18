@@ -1,4 +1,3 @@
-import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -34,10 +33,10 @@ export function ResetPassword() {
   const onSubmit = async (data: NewPasswordFormData) => {
     try {
       await resetPassword(token, data.password);
-      notify.success('Password has been reset successfully');
+      notify('Password has been reset successfully', 'success');
       navigate('/login');
     } catch (err) {
-      notify.error(err instanceof Error ? err.message : 'Failed to reset password');
+      notify(err instanceof Error ? err.message : 'Failed to reset password', 'danger');
     }
   };
 

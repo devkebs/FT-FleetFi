@@ -15,6 +15,9 @@ use App\Models\WalletTransaction;
 use App\Models\Telemetry;
 use App\Models\Ride;
 use App\Models\AuditLog;
+use App\Models\PaymentMethod;
+use App\Models\PaymentRecord;
+use App\Services\EmailNotificationService;
 
 class AdminDashboardController extends Controller
 {
@@ -869,6 +872,14 @@ class AdminDashboardController extends Controller
                 'user_agent' => $request->userAgent(),
             ]);
 
+            // Send KYC approval email
+            try {
+                $emailService = new EmailNotificationService();
+                $emailService->sendKYCVerificationEmail($user, 'approved');
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send KYC approval email: ' . $e->getMessage());
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'KYC approved successfully',
@@ -913,6 +924,14 @@ class AdminDashboardController extends Controller
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
+
+            // Send KYC rejection email
+            try {
+                $emailService = new EmailNotificationService();
+                $emailService->sendKYCVerificationEmail($user, 'rejected', $user->kyc_rejected_reason);
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send KYC rejection email: ' . $e->getMessage());
+            }
 
             return response()->json([
                 'success' => true,
@@ -1180,6 +1199,569 @@ class AdminDashboardController extends Controller
                 'message' => 'Failed to update API configuration: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    // ============================================
+    // PAYMENT ADMINISTRATION METHODS
+    // ============================================
+
+    /**
+     * Get payment management overview
+     */
+    public function paymentOverview(Request $request)
+    {
+        $period = $request->query('period', 30);
+
+        // Payment statistics
+        $stats = [
+            'total_funded' => PaymentRecord::where('type', 'funding')
+                ->where('status', 'completed')
+                ->sum('amount'),
+            'total_withdrawn' => PaymentRecord::where('type', 'withdrawal')
+                ->where('status', 'completed')
+                ->sum('amount'),
+            'total_fees_collected' => PaymentRecord::where('status', 'completed')
+                ->sum('fee'),
+            'period_funded' => PaymentRecord::where('type', 'funding')
+                ->where('status', 'completed')
+                ->where('created_at', '>=', now()->subDays($period))
+                ->sum('amount'),
+            'period_withdrawn' => PaymentRecord::where('type', 'withdrawal')
+                ->where('status', 'completed')
+                ->where('created_at', '>=', now()->subDays($period))
+                ->sum('amount'),
+            'period_fees' => PaymentRecord::where('status', 'completed')
+                ->where('created_at', '>=', now()->subDays($period))
+                ->sum('fee'),
+        ];
+
+        // Payment counts by status
+        $byStatus = PaymentRecord::select('status', DB::raw('count(*) as count'), DB::raw('sum(amount) as total'))
+            ->groupBy('status')
+            ->get()
+            ->mapWithKeys(fn($item) => [$item->status => ['count' => $item->count, 'total' => $item->total]]);
+
+        // Payment counts by gateway
+        $byGateway = PaymentRecord::select('gateway', DB::raw('count(*) as count'), DB::raw('sum(amount) as total'))
+            ->where('created_at', '>=', now()->subDays($period))
+            ->groupBy('gateway')
+            ->get()
+            ->mapWithKeys(fn($item) => [$item->gateway => ['count' => $item->count, 'total' => $item->total]]);
+
+        // Daily payment volume
+        $dailyVolume = PaymentRecord::select(
+                DB::raw('DATE(created_at) as date'),
+                DB::raw('sum(CASE WHEN type = "funding" THEN amount ELSE 0 END) as funded'),
+                DB::raw('sum(CASE WHEN type = "withdrawal" THEN amount ELSE 0 END) as withdrawn'),
+                DB::raw('sum(fee) as fees')
+            )
+            ->where('status', 'completed')
+            ->where('created_at', '>=', now()->subDays($period))
+            ->groupBy('date')
+            ->orderBy('date', 'asc')
+            ->get();
+
+        // Recent large transactions (over N100,000)
+        $largeTransactions = PaymentRecord::with('user:id,name,email')
+            ->where('amount', '>=', 100000)
+            ->where('created_at', '>=', now()->subDays($period))
+            ->orderBy('amount', 'desc')
+            ->limit(10)
+            ->get();
+
+        // Failed payments requiring attention
+        $failedPayments = PaymentRecord::with('user:id,name,email')
+            ->where('status', 'failed')
+            ->where('created_at', '>=', now()->subDays(7))
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get();
+
+        // Pending withdrawals
+        $pendingWithdrawals = PaymentRecord::with('user:id,name,email')
+            ->where('type', 'withdrawal')
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'overview' => [
+                'stats' => $stats,
+                'by_status' => $byStatus,
+                'by_gateway' => $byGateway,
+                'daily_volume' => $dailyVolume,
+                'large_transactions' => $largeTransactions,
+                'failed_payments' => $failedPayments,
+                'pending_withdrawals' => $pendingWithdrawals,
+            ],
+            'timestamp' => now()->toISOString(),
+        ]);
+    }
+
+    /**
+     * Get all payment records with filtering
+     */
+    public function getPaymentRecords(Request $request)
+    {
+        $query = PaymentRecord::with('user:id,name,email');
+
+        // Filter by type
+        if ($request->has('type') && $request->type) {
+            $query->where('type', $request->type);
+        }
+
+        // Filter by status
+        if ($request->has('status') && $request->status) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by gateway
+        if ($request->has('gateway') && $request->gateway) {
+            $query->where('gateway', $request->gateway);
+        }
+
+        // Filter by user
+        if ($request->has('user_id') && $request->user_id) {
+            $query->where('user_id', $request->user_id);
+        }
+
+        // Filter by date range
+        if ($request->has('from_date') && $request->from_date) {
+            $query->where('created_at', '>=', $request->from_date);
+        }
+        if ($request->has('to_date') && $request->to_date) {
+            $query->where('created_at', '<=', $request->to_date);
+        }
+
+        // Filter by amount range
+        if ($request->has('min_amount') && $request->min_amount) {
+            $query->where('amount', '>=', $request->min_amount);
+        }
+        if ($request->has('max_amount') && $request->max_amount) {
+            $query->where('amount', '<=', $request->max_amount);
+        }
+
+        // Search by reference
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('reference', 'like', "%{$search}%")
+                  ->orWhere('gateway_reference', 'like', "%{$search}%")
+                  ->orWhereHas('user', function($uq) use ($search) {
+                      $uq->where('name', 'like', "%{$search}%")
+                         ->orWhere('email', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $records = $query->orderBy('created_at', 'desc')
+            ->paginate($request->query('per_page', 50));
+
+        // Calculate filtered totals
+        $totals = [
+            'count' => $records->total(),
+            'total_amount' => PaymentRecord::where(function($q) use ($request) {
+                if ($request->has('type') && $request->type) {
+                    $q->where('type', $request->type);
+                }
+                if ($request->has('status') && $request->status) {
+                    $q->where('status', $request->status);
+                }
+            })->sum('amount'),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'records' => $records->items(),
+            'totals' => $totals,
+            'pagination' => [
+                'current_page' => $records->currentPage(),
+                'per_page' => $records->perPage(),
+                'total' => $records->total(),
+                'last_page' => $records->lastPage(),
+            ],
+        ]);
+    }
+
+    /**
+     * Get payment record details
+     */
+    public function getPaymentRecord($id)
+    {
+        $record = PaymentRecord::with(['user:id,name,email,role', 'paymentMethod'])
+            ->findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'record' => $record,
+        ]);
+    }
+
+    /**
+     * Retry failed payment
+     */
+    public function retryPayment(Request $request, $id)
+    {
+        $record = PaymentRecord::findOrFail($id);
+
+        if ($record->status !== 'failed') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only failed payments can be retried',
+            ], 400);
+        }
+
+        // Mark as pending for retry
+        $record->status = 'pending';
+        $record->metadata = array_merge($record->metadata ?? [], [
+            'retry_requested_at' => now()->toISOString(),
+            'retry_requested_by' => $request->user()->id,
+        ]);
+        $record->save();
+
+        // Log the action
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'payment_retry',
+            'description' => "Requested retry for payment {$record->reference} (N{$record->amount})",
+            'ip_address' => $request->ip(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment marked for retry',
+            'record' => $record,
+        ]);
+    }
+
+    /**
+     * Manually approve/process a withdrawal
+     */
+    public function approveWithdrawal(Request $request, $id)
+    {
+        $record = PaymentRecord::findOrFail($id);
+
+        if ($record->type !== 'withdrawal') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This is not a withdrawal request',
+            ], 400);
+        }
+
+        if ($record->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only pending withdrawals can be approved',
+            ], 400);
+        }
+
+        $record->status = 'completed';
+        $record->completed_at = now();
+        $record->metadata = array_merge($record->metadata ?? [], [
+            'approved_at' => now()->toISOString(),
+            'approved_by' => $request->user()->id,
+            'approval_note' => $request->input('note', 'Manually approved by admin'),
+        ]);
+        $record->save();
+
+        // Log the action
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'withdrawal_approved',
+            'description' => "Approved withdrawal {$record->reference} for user ID {$record->user_id} (N{$record->amount})",
+            'ip_address' => $request->ip(),
+        ]);
+
+        // Send email notification
+        try {
+            $user = User::find($record->user_id);
+            if ($user) {
+                $emailService = new EmailNotificationService();
+                $emailService->sendWithdrawalStatusNotification($user, 'approved', $record->amount / 100);
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send withdrawal approval email: ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Withdrawal approved successfully',
+            'record' => $record,
+        ]);
+    }
+
+    /**
+     * Reject a withdrawal
+     */
+    public function rejectWithdrawal(Request $request, $id)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:500',
+        ]);
+
+        $record = PaymentRecord::findOrFail($id);
+
+        if ($record->type !== 'withdrawal') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This is not a withdrawal request',
+            ], 400);
+        }
+
+        if ($record->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only pending withdrawals can be rejected',
+            ], 400);
+        }
+
+        // Refund the amount back to wallet
+        $wallet = Wallet::where('user_id', $record->user_id)->first();
+        if ($wallet) {
+            $wallet->increment('balance', $record->amount);
+
+            // Create refund transaction
+            WalletTransaction::create([
+                'wallet_id' => $wallet->id,
+                'user_id' => $record->user_id,
+                'type' => 'credit',
+                'amount' => $record->amount,
+                'description' => "Withdrawal rejected: {$request->reason}",
+                'reference' => 'REFUND-' . $record->reference,
+                'status' => 'completed',
+            ]);
+        }
+
+        $record->status = 'failed';
+        $record->failed_at = now();
+        $record->failure_reason = $request->reason;
+        $record->metadata = array_merge($record->metadata ?? [], [
+            'rejected_at' => now()->toISOString(),
+            'rejected_by' => $request->user()->id,
+            'rejection_reason' => $request->reason,
+        ]);
+        $record->save();
+
+        // Log the action
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'withdrawal_rejected',
+            'description' => "Rejected withdrawal {$record->reference} for user ID {$record->user_id}. Reason: {$request->reason}",
+            'ip_address' => $request->ip(),
+        ]);
+
+        // Send email notification
+        try {
+            $user = User::find($record->user_id);
+            if ($user) {
+                $emailService = new EmailNotificationService();
+                $emailService->sendWithdrawalStatusNotification($user, 'rejected', $record->amount / 100, $request->reason);
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send withdrawal rejection email: ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Withdrawal rejected and amount refunded to user wallet',
+            'record' => $record,
+        ]);
+    }
+
+    /**
+     * Get all payment methods (bank accounts) across users
+     */
+    public function getAllPaymentMethods(Request $request)
+    {
+        $query = PaymentMethod::with('user:id,name,email,role');
+
+        // Filter by user
+        if ($request->has('user_id') && $request->user_id) {
+            $query->where('user_id', $request->user_id);
+        }
+
+        // Filter by verification status
+        if ($request->has('verified')) {
+            $query->where('is_verified', $request->boolean('verified'));
+        }
+
+        // Search
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('account_number', 'like', "%{$search}%")
+                  ->orWhere('account_name', 'like', "%{$search}%")
+                  ->orWhere('bank_name', 'like', "%{$search}%")
+                  ->orWhereHas('user', function($uq) use ($search) {
+                      $uq->where('name', 'like', "%{$search}%")
+                         ->orWhere('email', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $methods = $query->orderBy('created_at', 'desc')
+            ->paginate($request->query('per_page', 50));
+
+        $stats = [
+            'total' => PaymentMethod::count(),
+            'verified' => PaymentMethod::where('is_verified', true)->count(),
+            'unverified' => PaymentMethod::where('is_verified', false)->count(),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'payment_methods' => $methods->items(),
+            'stats' => $stats,
+            'pagination' => [
+                'current_page' => $methods->currentPage(),
+                'per_page' => $methods->perPage(),
+                'total' => $methods->total(),
+                'last_page' => $methods->lastPage(),
+            ],
+        ]);
+    }
+
+    /**
+     * Delete a payment method (admin override)
+     */
+    public function deletePaymentMethod(Request $request, $id)
+    {
+        $method = PaymentMethod::findOrFail($id);
+
+        // Log before deletion
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'payment_method_deleted_admin',
+            'description' => "Admin deleted payment method: {$method->bank_name} - {$method->account_number} for user ID {$method->user_id}",
+            'ip_address' => $request->ip(),
+        ]);
+
+        $method->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment method deleted successfully',
+        ]);
+    }
+
+    /**
+     * Get payment gateway configuration status
+     */
+    public function getPaymentGatewayStatus()
+    {
+        $paystackConfigured = !empty(config('services.paystack.secret_key')) &&
+                              config('services.paystack.secret_key') !== 'sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+
+        $flutterwaveConfigured = !empty(config('services.flutterwave.secret_key')) &&
+                                  config('services.flutterwave.secret_key') !== 'FLWSECK_TEST-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-X';
+
+        return response()->json([
+            'success' => true,
+            'gateways' => [
+                'paystack' => [
+                    'configured' => $paystackConfigured,
+                    'mode' => str_starts_with(config('services.paystack.secret_key', ''), 'sk_live_') ? 'live' : 'test',
+                    'features' => ['card', 'bank_transfer', 'ussd', 'mobile_money'],
+                ],
+                'flutterwave' => [
+                    'configured' => $flutterwaveConfigured,
+                    'mode' => str_contains(config('services.flutterwave.secret_key', ''), 'FLWSECK-') ? 'live' : 'test',
+                    'features' => ['card', 'bank_transfer', 'mobile_money', 'barter'],
+                ],
+            ],
+            'webhook_urls' => [
+                'paystack' => config('app.url') . '/api/webhooks/paystack',
+                'flutterwave' => config('app.url') . '/api/webhooks/flutterwave',
+            ],
+        ]);
+    }
+
+    /**
+     * Get user payment history
+     */
+    public function getUserPayments(Request $request, $userId)
+    {
+        $user = User::findOrFail($userId);
+
+        $payments = PaymentRecord::where('user_id', $userId)
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+
+        $stats = [
+            'total_funded' => PaymentRecord::where('user_id', $userId)
+                ->where('type', 'funding')
+                ->where('status', 'completed')
+                ->sum('amount'),
+            'total_withdrawn' => PaymentRecord::where('user_id', $userId)
+                ->where('type', 'withdrawal')
+                ->where('status', 'completed')
+                ->sum('amount'),
+            'payment_methods_count' => PaymentMethod::where('user_id', $userId)->count(),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
+            'payments' => $payments->items(),
+            'stats' => $stats,
+            'pagination' => [
+                'current_page' => $payments->currentPage(),
+                'per_page' => $payments->perPage(),
+                'total' => $payments->total(),
+                'last_page' => $payments->lastPage(),
+            ],
+        ]);
+    }
+
+    /**
+     * Export payment records to CSV
+     */
+    public function exportPayments(Request $request)
+    {
+        $query = PaymentRecord::with('user:id,name,email');
+
+        // Apply same filters as getPaymentRecords
+        if ($request->has('type') && $request->type) {
+            $query->where('type', $request->type);
+        }
+        if ($request->has('status') && $request->status) {
+            $query->where('status', $request->status);
+        }
+        if ($request->has('from_date') && $request->from_date) {
+            $query->where('created_at', '>=', $request->from_date);
+        }
+        if ($request->has('to_date') && $request->to_date) {
+            $query->where('created_at', '<=', $request->to_date);
+        }
+
+        $records = $query->orderBy('created_at', 'desc')->get();
+
+        $csv = "Reference,Type,Gateway,Amount,Fee,Net Amount,Status,User,Email,Date\n";
+
+        foreach ($records as $record) {
+            $csv .= implode(',', [
+                $record->reference,
+                $record->type,
+                $record->gateway,
+                $record->amount,
+                $record->fee,
+                $record->net_amount,
+                $record->status,
+                '"' . ($record->user->name ?? 'N/A') . '"',
+                $record->user->email ?? 'N/A',
+                $record->created_at->format('Y-m-d H:i:s'),
+            ]) . "\n";
+        }
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="payments_export_' . now()->format('Y-m-d') . '.csv"',
+        ]);
     }
 
     /**

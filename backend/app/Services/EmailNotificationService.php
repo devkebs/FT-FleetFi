@@ -251,4 +251,70 @@ class EmailNotificationService
         Log::info("Bulk email sent to {$sentCount} users");
         return $sentCount;
     }
+
+    /**
+     * Send withdrawal status notification
+     */
+    public function sendWithdrawalStatusNotification(User $user, string $status, float $amount, ?string $reason = null): bool
+    {
+        try {
+            Mail::send('emails.withdrawal-status', [
+                'userName' => $user->name,
+                'status' => $status,
+                'amount' => number_format($amount, 2),
+                'reason' => $reason,
+                'walletUrl' => config('app.frontend_url') . '/wallet',
+            ], function ($message) use ($user, $status) {
+                $subject = match($status) {
+                    'approved', 'completed' => 'Withdrawal Approved - FleetFi',
+                    'rejected' => 'Withdrawal Request Update - FleetFi',
+                    'pending' => 'Withdrawal Request Received - FleetFi',
+                    default => 'Withdrawal Status Update - FleetFi',
+                };
+                $message->to($user->email, $user->name)->subject($subject);
+            });
+
+            Log::info("Withdrawal status email sent to {$user->email}", [
+                'status' => $status,
+                'amount' => $amount,
+            ]);
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Failed to send withdrawal status email to {$user->email}: {$e->getMessage()}");
+            return false;
+        }
+    }
+
+    /**
+     * Send contact form response email
+     */
+    public function sendContactResponse(string $email, string $name, string $originalMessage, string $responseText): bool
+    {
+        try {
+            Mail::send('emails.contact-response', [
+                'userName' => $name,
+                'originalMessage' => $originalMessage,
+                'responseText' => $responseText,
+                'websiteUrl' => config('app.frontend_url'),
+            ], function ($message) use ($email, $name) {
+                $message->to($email, $name)
+                    ->subject('Re: Your FleetFi Inquiry');
+            });
+
+            Log::info("Contact response email sent to {$email}");
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Failed to send contact response email to {$email}: {$e->getMessage()}");
+            return false;
+        }
+    }
+
+    /**
+     * Check if email is properly configured
+     */
+    public static function isConfigured(): bool
+    {
+        $mailer = config('mail.mailer', config('mail.default'));
+        return $mailer && $mailer !== 'log' && $mailer !== 'array';
+    }
 }

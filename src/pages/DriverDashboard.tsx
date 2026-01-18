@@ -3,9 +3,11 @@ import {
   DriverAPI,
   DriverDashboardData,
   StartTripData,
-  EndTripData
+  EndTripData,
+  SwapTask
 } from '../services/api';
 import { RoleCapabilities } from '../components/RoleCapabilities';
+import { BatterySwapSystem } from '../components/BatterySwapSystem';
 
 interface DriverDashboardProps {
   demoMode?: boolean;
@@ -22,6 +24,14 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({ demoMode = fal
   const [showEndTripModal, setShowEndTripModal] = useState(false);
   const [tripForm, setTripForm] = useState<StartTripData>({});
   const [endTripForm, setEndTripForm] = useState<EndTripData>({ distance_km: 0 });
+
+  // Battery swap state
+  const [showSwapModal, setShowSwapModal] = useState(false);
+
+  const handleSwapComplete = (task: SwapTask) => {
+    console.log('Swap completed:', task);
+    loadDashboardData(); // Refresh dashboard data after swap
+  };
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -304,6 +314,34 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({ demoMode = fal
         </div>
       </div>
 
+      {/* Battery Swap Section */}
+      <div className="card shadow-sm border-0 mb-4 bg-gradient" style={{ background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)' }}>
+        <div className="card-body text-white">
+          <div className="row align-items-center">
+            <div className="col-md-8">
+              <div className="d-flex align-items-center mb-2">
+                <i className="bi bi-battery-charging display-6 me-3"></i>
+                <div>
+                  <h4 className="mb-1 fw-bold">Battery Swap Station</h4>
+                  <p className="mb-0 opacity-75">
+                    Find nearby swap stations, request a battery swap, and track your swap history
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4 text-md-end mt-3 mt-md-0">
+              <button
+                className="btn btn-light btn-lg px-4"
+                onClick={() => setShowSwapModal(true)}
+              >
+                <i className="bi bi-lightning-charge-fill me-2"></i>
+                Open Swap Station
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Quick Actions & Vehicle Info */}
       <div className="row g-4 mb-4">
         {/* Start Trip Card */}
@@ -399,7 +437,10 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({ demoMode = fal
                     <button className="btn btn-sm btn-outline-success flex-fill">
                       <i className="bi bi-pin-map me-1"></i>View Routes
                     </button>
-                    <button className="btn btn-sm btn-outline-primary flex-fill">
+                    <button
+                      className="btn btn-sm btn-outline-primary flex-fill"
+                      onClick={() => setShowSwapModal(true)}
+                    >
                       <i className="bi bi-lightning-charge me-1"></i>Request Swap
                     </button>
                   </div>
@@ -638,6 +679,25 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({ demoMode = fal
                   )}
                   Complete Trip
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Battery Swap Modal */}
+      {showSwapModal && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered modal-xl">
+            <div className="modal-content">
+              <div className="modal-body p-0">
+                <BatterySwapSystem
+                  vehicleId={data.vehicle?.id}
+                  currentBatteryLevel={data.vehicle?.soh || 50}
+                  vehicleSoh={data.vehicle?.soh}
+                  onSwapComplete={handleSwapComplete}
+                  onClose={() => setShowSwapModal(false)}
+                />
               </div>
             </div>
           </div>

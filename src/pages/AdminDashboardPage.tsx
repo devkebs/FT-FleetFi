@@ -53,6 +53,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { UserManagement } from '../components/UserManagement';
 import { UserModal } from '../components/UserModal';
 import { DualRevenueBreakdown } from '../components/DualRevenueBreakdown';
+import { PaymentManagement } from '../components/PaymentManagement';
+import { ContactManagement } from '../components/ContactManagement';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // API client
@@ -416,14 +418,14 @@ const AdminDashboardPage: React.FC = () => {
     }
   }, [activeTab, transactionFilter]);
 
-  // Sample chart data
+  // Sample chart data - realistic Nigerian Naira figures
   const revenueData = [
-    { month: 'Jan', revenue: 45000, users: 25 },
-    { month: 'Feb', revenue: 52000, users: 28 },
-    { month: 'Mar', revenue: 48000, users: 30 },
-    { month: 'Apr', revenue: 61000, users: 32 },
-    { month: 'May', revenue: 55000, users: 33 },
-    { month: 'Jun', revenue: 67000, users: 35 },
+    { month: 'Jan', revenue: 2450000, users: 25 },
+    { month: 'Feb', revenue: 2820000, users: 28 },
+    { month: 'Mar', revenue: 2680000, users: 30 },
+    { month: 'Apr', revenue: 3150000, users: 32 },
+    { month: 'May', revenue: 2950000, users: 33 },
+    { month: 'Jun', revenue: 3420000, users: 35 },
   ];
 
   const userDistribution = [
@@ -577,6 +579,18 @@ const AdminDashboardPage: React.FC = () => {
             </Nav.Link>
           </Nav.Item>
           <Nav.Item>
+            <Nav.Link active={activeTab === 'payments'} onClick={() => setActiveTab('payments')}>
+              <Wallet size={16} className="me-2" />
+              Payments
+            </Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link active={activeTab === 'contacts'} onClick={() => setActiveTab('contacts')}>
+              <Bell size={16} className="me-2" />
+              Contacts
+            </Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
             <Nav.Link active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')}>
               <TrendingUp size={16} className="me-2" />
               Analytics
@@ -657,11 +671,24 @@ const AdminDashboardPage: React.FC = () => {
                       <LineChart data={revenueData}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="month" />
-                        <YAxis yAxisId="left" />
+                        <YAxis
+                          yAxisId="left"
+                          tickFormatter={(value: number) => {
+                            if (value >= 1000000) return `₦${(value / 1000000).toFixed(1)}M`;
+                            if (value >= 1000) return `₦${(value / 1000).toFixed(0)}K`;
+                            return `₦${value}`;
+                          }}
+                          domain={['dataMin - 100000', 'dataMax + 100000']}
+                        />
                         <YAxis yAxisId="right" orientation="right" />
-                        <Tooltip />
+                        <Tooltip
+                          formatter={(value) => {
+                            const numValue = Number(value) || 0;
+                            return `₦${numValue.toLocaleString()}`;
+                          }}
+                        />
                         <Legend />
-                        <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#0d6efd" strokeWidth={2} name="Revenue ($)" />
+                        <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#0d6efd" strokeWidth={2} name="Revenue (₦)" />
                         <Line yAxisId="right" type="monotone" dataKey="users" stroke="#198754" strokeWidth={2} name="Total Users" />
                       </LineChart>
                     </ResponsiveContainer>
@@ -861,10 +888,19 @@ const AdminDashboardPage: React.FC = () => {
                     <BarChart data={revenueData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip />
+                      <YAxis
+                        tickFormatter={(value: number) => {
+                          if (value >= 1000000) return `₦${(value / 1000000).toFixed(1)}M`;
+                          if (value >= 1000) return `₦${(value / 1000).toFixed(0)}K`;
+                          return `₦${value}`;
+                        }}
+                        domain={['dataMin - 100000', 'dataMax + 100000']}
+                      />
+                      <Tooltip
+                        formatter={(value) => `₦${(Number(value) || 0).toLocaleString()}`}
+                      />
                       <Legend />
-                      <Bar dataKey="revenue" fill="#0d6efd" name="Revenue ($)" />
+                      <Bar dataKey="revenue" fill="#0d6efd" name="Revenue (₦)" />
                     </BarChart>
                   </ResponsiveContainer>
                 </Card.Body>
@@ -1209,6 +1245,16 @@ const AdminDashboardPage: React.FC = () => {
               </Row>
             </Col>
           </Row>
+        )}
+
+        {/* Payments Management Tab */}
+        {activeTab === 'payments' && (
+          <PaymentManagement />
+        )}
+
+        {/* Contact Messages Management Tab */}
+        {activeTab === 'contacts' && (
+          <ContactManagement />
         )}
 
         {/* System Health Tab */}

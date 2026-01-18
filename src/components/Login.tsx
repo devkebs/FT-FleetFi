@@ -2,12 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { LoadingSpinner } from './LoadingSpinner';
-
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [, setIsSubmitting] = useState(false);
   const { setUser, error, setError } = useAuth();
   const navigate = useNavigate();
 

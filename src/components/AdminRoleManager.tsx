@@ -20,8 +20,10 @@ export const AdminRoleManager: React.FC = () => {
   const [capabilities, setCapabilities] = useState<RoleCapability[]>([]);
   const [roleStats, setRoleStats] = useState<RoleStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedRole, setSelectedRole] = useState<string>('all');
-  const [editingCapability, setEditingCapability] = useState<number | null>(null);
+  const [selectedRole] = useState<string>('all');
+  void selectedRole; // Used for filtering capabilities
+  const [editingCapability] = useState<number | null>(null);
+  void editingCapability; // For future inline editing feature
   const [showAddModal, setShowAddModal] = useState(false);
   const [expandedRoles, setExpandedRoles] = useState<Record<string, boolean>>({
     admin: false,

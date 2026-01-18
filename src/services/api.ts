@@ -4,7 +4,6 @@
 
 import { apiCache, staleWhileRevalidate } from '../utils/apiCache';
 
-const API_VERSION = 'v1';
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000';
 const API_URL = `${API_BASE_URL}/api`;
 
@@ -216,8 +215,8 @@ export const apiClient = {
   delete: <T>(endpoint: string) => client.delete<T>(endpoint),
 };
 
-// Backward compatibility
-async function authFetch(url: string, options: RequestInit = {}) {
+// Backward compatibility - exported for legacy code
+export async function authFetch(url: string, options: RequestInit = {}) {
   const token = TokenManager.get();
   const headers = {
     'Accept': 'application/json',
@@ -710,6 +709,161 @@ export const depositFunds = (amount: number, paymentMethod?: string) =>
   WalletAPI.deposit(amount, paymentMethod);
 export const withdrawFunds = (amount: number, bankAccount?: string, bankName?: string) =>
   WalletAPI.withdraw(amount, bankAccount, bankName);
+
+// ============================================================================
+// Payment API - Payment Processing & Bank Accounts
+// ============================================================================
+
+export interface Bank {
+  code: string;
+  name: string;
+}
+
+export interface PaymentMethod {
+  id: number;
+  type: 'bank_account' | 'card' | 'mobile_money';
+  bank_name: string | null;
+  account_number: string | null;
+  account_name: string | null;
+  display_name: string;
+  is_default: boolean;
+  is_verified: boolean;
+  created_at: string;
+}
+
+export interface PaymentRecord {
+  id: number;
+  reference: string;
+  gateway: 'paystack' | 'flutterwave' | 'bank_transfer' | 'manual';
+  type: 'funding' | 'withdrawal' | 'investment' | 'refund' | 'payout';
+  amount: number;
+  fee: number;
+  net_amount: number;
+  currency: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'refunded';
+  failure_reason: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface FundingResponse {
+  success: boolean;
+  reference: string;
+  authorization_url: string;
+  access_code?: string;
+  amount: number;
+  fee: number;
+}
+
+export interface WithdrawalResponse {
+  success: boolean;
+  reference: string;
+  amount: number;
+  fee: number;
+  net_amount: number;
+  transfer_code: string;
+  message: string;
+}
+
+export const PaymentAPI = {
+  // Get list of banks
+  async getBanks(): Promise<Bank[]> {
+    const response = await apiFetch('/payment-methods/banks');
+    if (!response.ok) throw await createApiError(response);
+    const data = await response.json();
+    return data.banks;
+  },
+
+  // Verify a bank account
+  async verifyBankAccount(accountNumber: string, bankCode: string): Promise<{ account_name: string; account_number: string }> {
+    const response = await apiFetch('/payment-methods/verify-account', {
+      method: 'POST',
+      body: JSON.stringify({ account_number: accountNumber, bank_code: bankCode }),
+    });
+    if (!response.ok) throw await createApiError(response);
+    return response.json();
+  },
+
+  // Get user's payment methods
+  async getPaymentMethods(): Promise<PaymentMethod[]> {
+    const response = await apiFetch('/payment-methods');
+    if (!response.ok) throw await createApiError(response);
+    const data = await response.json();
+    return data.payment_methods;
+  },
+
+  // Add a bank account
+  async addBankAccount(accountNumber: string, bankCode: string): Promise<PaymentMethod> {
+    const response = await apiFetch('/payment-methods', {
+      method: 'POST',
+      body: JSON.stringify({ account_number: accountNumber, bank_code: bankCode }),
+    });
+    if (!response.ok) throw await createApiError(response);
+    const data = await response.json();
+    return data.payment_method;
+  },
+
+  // Set payment method as default
+  async setDefaultPaymentMethod(id: number): Promise<void> {
+    const response = await apiFetch(`/payment-methods/${id}/default`, {
+      method: 'PATCH',
+    });
+    if (!response.ok) throw await createApiError(response);
+  },
+
+  // Delete payment method
+  async deletePaymentMethod(id: number): Promise<void> {
+    const response = await apiFetch(`/payment-methods/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw await createApiError(response);
+  },
+
+  // Initialize wallet funding
+  async fundWallet(amount: number, gateway: 'paystack' | 'flutterwave' = 'paystack'): Promise<FundingResponse> {
+    const response = await apiFetch('/payments/fund-wallet', {
+      method: 'POST',
+      body: JSON.stringify({ amount, gateway }),
+    });
+    if (!response.ok) throw await createApiError(response);
+    return response.json();
+  },
+
+  // Process withdrawal
+  async withdraw(amount: number, paymentMethodId: number): Promise<WithdrawalResponse> {
+    const response = await apiFetch('/payments/withdraw', {
+      method: 'POST',
+      body: JSON.stringify({ amount, payment_method_id: paymentMethodId }),
+    });
+    if (!response.ok) throw await createApiError(response);
+    return response.json();
+  },
+
+  // Get payment history
+  async getPaymentHistory(limit: number = 20): Promise<PaymentRecord[]> {
+    const response = await apiFetch(`/payments/history?limit=${limit}`);
+    if (!response.ok) throw await createApiError(response);
+    const data = await response.json();
+    return data.payments;
+  },
+
+  // Calculate fee
+  async calculateFee(amount: number, gateway: string, type: 'funding' | 'withdrawal'): Promise<{ amount: number; fee: number; net_amount: number }> {
+    const response = await apiFetch(`/payments/calculate-fee?amount=${amount}&gateway=${gateway}&type=${type}`);
+    if (!response.ok) throw await createApiError(response);
+    return response.json();
+  },
+
+  // Verify payment (after callback)
+  async verifyPayment(reference: string, gateway: 'paystack' | 'flutterwave'): Promise<{ success: boolean; amount: number; new_balance: number }> {
+    const response = await apiFetch('/payments/verify', {
+      method: 'POST',
+      body: JSON.stringify({ reference, gateway }),
+    });
+    if (!response.ok) throw await createApiError(response);
+    return response.json();
+  },
+};
 
 // ============================================================================
 // Investment API - Portfolio Management
@@ -1315,3 +1469,713 @@ export const getDailyEarnings = (days?: number) => DriverAPI.getDailyEarnings(da
 export const requestDriverPayout = () => DriverAPI.requestPayout();
 export const driverClockIn = () => DriverAPI.clockIn();
 export const driverClockOut = () => DriverAPI.clockOut();
+
+// ============================================================================
+// Battery Swap API - Swap Station & Task Management
+// ============================================================================
+
+export interface SwapStation {
+  id: number;
+  station_id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  status: 'active' | 'maintenance' | 'offline';
+  available_batteries: number;
+  total_capacity: number;
+  distance_km?: number;
+  estimated_wait_minutes?: number;
+  operating_hours: string;
+  phone?: string;
+}
+
+export interface SwapTask {
+  id: number;
+  task_number: string;
+  driver_id: number;
+  vehicle_id: number;
+  asset_id: number;
+  swap_station_id: number;
+  status: 'pending' | 'enroute_to_station' | 'arrived_at_station' | 'swapping' | 'swap_complete' | 'completed' | 'cancelled';
+  battery_level_before: number | null;
+  battery_level_after: number | null;
+  soh_before: number | null;
+  soh_after: number | null;
+  distance_km: number | null;
+  duration_minutes: number | null;
+  started_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  cancel_reason: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  station?: SwapStation;
+  vehicle?: {
+    id: number;
+    asset_id: string;
+    model: string;
+    soh: number;
+  };
+}
+
+export interface SwapRequest {
+  station_id: number;
+  vehicle_id?: number;
+  battery_level_before?: number;
+  notes?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export const SwapAPI = {
+  // Get nearby swap stations
+  async getNearbyStations(params: {
+    latitude?: number;
+    longitude?: number;
+    radius_km?: number;
+    limit?: number;
+  } = {}): Promise<{ stations: SwapStation[]; total: number }> {
+    const queryParams = new URLSearchParams();
+    if (params.latitude) queryParams.append('latitude', String(params.latitude));
+    if (params.longitude) queryParams.append('longitude', String(params.longitude));
+    if (params.radius_km) queryParams.append('radius_km', String(params.radius_km));
+    if (params.limit) queryParams.append('limit', String(params.limit));
+
+    const query = queryParams.toString();
+    return staleWhileRevalidate(
+      `swap:stations:nearby:${query}`,
+      () => client.get(`/fleet/swap-stations/nearby${query ? '?' + query : ''}`),
+      30000 // 30 seconds
+    );
+  },
+
+  // Get all swap stations
+  async getStations(): Promise<{ stations: SwapStation[] }> {
+    return staleWhileRevalidate(
+      'swap:stations:all',
+      () => client.get('/swap-stations'),
+      60000 // 1 minute
+    );
+  },
+
+  // Get station details
+  async getStationDetails(stationId: number): Promise<{ station: SwapStation }> {
+    return staleWhileRevalidate(
+      `swap:station:${stationId}`,
+      () => client.get(`/swap-stations/${stationId}`),
+      30000
+    );
+  },
+
+  // Get driver's active swap task
+  async getActiveSwapTask(): Promise<{ has_active_task: boolean; task: SwapTask | null }> {
+    return staleWhileRevalidate(
+      'swap:active_task',
+      () => client.get('/fleet/drivers/me/active-task'),
+      5000 // 5 seconds - frequently updated
+    );
+  },
+
+  // Get driver's swap task history
+  async getSwapHistory(params: {
+    status?: string;
+    from_date?: string;
+    to_date?: string;
+    page?: number;
+    per_page?: number;
+  } = {}): Promise<{
+    tasks: SwapTask[];
+    total: number;
+    current_page: number;
+    last_page: number;
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params.status) queryParams.append('status', params.status);
+    if (params.from_date) queryParams.append('from_date', params.from_date);
+    if (params.to_date) queryParams.append('to_date', params.to_date);
+    if (params.page) queryParams.append('page', String(params.page));
+    if (params.per_page) queryParams.append('per_page', String(params.per_page));
+
+    const query = queryParams.toString();
+    return client.get(`/fleet/drivers/me/swap-tasks${query ? '?' + query : ''}`);
+  },
+
+  // Request a new swap (create swap task)
+  async requestSwap(data: SwapRequest): Promise<{
+    message: string;
+    task: SwapTask;
+    estimated_wait: number;
+  }> {
+    const response = await client.post<{
+      message: string;
+      task: SwapTask;
+      estimated_wait: number;
+    }>('/fleet/swap-tasks', data);
+    apiCache.invalidatePattern(/^swap:/);
+    apiCache.invalidatePattern(/^driver:/);
+    return response;
+  },
+
+  // Start swap task (driver arrived at station)
+  async startSwapTask(taskId: number): Promise<{
+    message: string;
+    task: SwapTask;
+  }> {
+    const response = await client.post<{
+      message: string;
+      task: SwapTask;
+    }>(`/fleet/swap-tasks/${taskId}/start`);
+    apiCache.invalidatePattern(/^swap:/);
+    return response;
+  },
+
+  // Update swap task status
+  async updateSwapTaskStatus(
+    taskId: number,
+    status: SwapTask['status'],
+    data?: {
+      battery_level_after?: number;
+      soh_after?: number;
+      notes?: string;
+    }
+  ): Promise<{ message: string; task: SwapTask }> {
+    const response = await client.put<{ message: string; task: SwapTask }>(
+      `/fleet/swap-tasks/${taskId}/status`,
+      { status, ...data }
+    );
+    apiCache.invalidatePattern(/^swap:/);
+    apiCache.invalidatePattern(/^driver:/);
+    return response;
+  },
+
+  // Cancel swap task
+  async cancelSwapTask(taskId: number, reason?: string): Promise<{
+    message: string;
+    task: SwapTask;
+  }> {
+    const response = await client.put<{
+      message: string;
+      task: SwapTask;
+    }>(`/fleet/swap-tasks/${taskId}/status`, {
+      status: 'cancelled',
+      cancel_reason: reason
+    });
+    apiCache.invalidatePattern(/^swap:/);
+    return response;
+  },
+
+  // Complete swap task
+  async completeSwapTask(
+    taskId: number,
+    data: {
+      battery_level_after: number;
+      soh_after?: number;
+      notes?: string;
+    }
+  ): Promise<{
+    message: string;
+    task: SwapTask;
+    bonus_earned?: number;
+  }> {
+    const response = await client.put<{
+      message: string;
+      task: SwapTask;
+      bonus_earned?: number;
+    }>(`/fleet/swap-tasks/${taskId}/status`, {
+      status: 'completed',
+      ...data
+    });
+    apiCache.invalidatePattern(/^swap:/);
+    apiCache.invalidatePattern(/^driver:/);
+    return response;
+  },
+
+  // Get swap statistics
+  async getSwapStats(): Promise<{
+    today: { count: number; avg_duration: number };
+    this_week: { count: number; avg_duration: number };
+    this_month: { count: number; avg_duration: number };
+    lifetime: { count: number; total_bonuses: number };
+  }> {
+    return staleWhileRevalidate(
+      'swap:stats',
+      () => client.get('/fleet/drivers/me/swap-stats'),
+      60000
+    );
+  },
+};
+
+// Backward compatibility exports for swap
+export const getNearbySwapStations = (params?: { latitude?: number; longitude?: number; radius_km?: number }) =>
+  SwapAPI.getNearbyStations(params);
+export const getSwapStations = () => SwapAPI.getStations();
+export const getActiveSwapTask = () => SwapAPI.getActiveSwapTask();
+export const getSwapTaskHistory = (params?: { status?: string; page?: number }) => SwapAPI.getSwapHistory(params);
+export const requestSwap = (data: SwapRequest) => SwapAPI.requestSwap(data);
+export const startSwapTask = (taskId: number) => SwapAPI.startSwapTask(taskId);
+export const completeSwapTask = (taskId: number, data: { battery_level_after: number; soh_after?: number }) =>
+  SwapAPI.completeSwapTask(taskId, data);
+export const cancelSwapTask = (taskId: number, reason?: string) => SwapAPI.cancelSwapTask(taskId, reason);
+
+
+// ============================================================================
+// Contact API - Public contact form submission
+// ============================================================================
+
+export interface ContactFormData {
+  name: string;
+  email: string;
+  phone?: string;
+  subject: 'investment' | 'operator' | 'driver' | 'support' | 'other';
+  message: string;
+}
+
+export interface ContactMessage {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string;
+  subject: string;
+  message: string;
+  status: 'new' | 'read' | 'responded' | 'archived';
+  responded_at?: string;
+  responded_by?: number;
+  response_notes?: string;
+  responder?: { id: number; name: string };
+  created_at: string;
+  updated_at: string;
+}
+
+export const ContactAPI = {
+  // Submit contact form (public - no auth required)
+  async submit(data: ContactFormData): Promise<{ success: boolean; message: string; data?: { id: number } }> {
+    const response = await fetch(`${API_URL}/contact`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Failed to submit contact form');
+    }
+
+    return result;
+  },
+
+  // Admin endpoints - require auth
+  async list(params?: {
+    status?: string;
+    subject?: string;
+    search?: string;
+    from_date?: string;
+    to_date?: string;
+    per_page?: number;
+    page?: number;
+  }): Promise<{
+    success: boolean;
+    data: {
+      data: ContactMessage[];
+      current_page: number;
+      last_page: number;
+      total: number;
+    };
+    stats: {
+      total: number;
+      new: number;
+      read: number;
+      responded: number;
+    };
+  }> {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) searchParams.append(key, String(value));
+      });
+    }
+    return apiClient.get(`/admin/contacts?${searchParams.toString()}`);
+  },
+
+  async get(id: number): Promise<{ success: boolean; data: ContactMessage }> {
+    return apiClient.get(`/admin/contacts/${id}`);
+  },
+
+  async updateStatus(id: number, status: string, responseNotes?: string): Promise<{ success: boolean; data: ContactMessage }> {
+    return apiClient.patch(`/admin/contacts/${id}/status`, { status, response_notes: responseNotes });
+  },
+
+  async delete(id: number): Promise<{ success: boolean; message: string }> {
+    return apiClient.delete(`/admin/contacts/${id}`);
+  },
+
+  async bulkUpdateStatus(ids: number[], status: string): Promise<{ success: boolean; message: string }> {
+    return apiClient.post('/admin/contacts/bulk-status', { ids, status });
+  },
+};
+
+// Convenience exports
+export const submitContactForm = (data: ContactFormData) => ContactAPI.submit(data);
+
+// ============================================================================
+// Telemetry API - Real-time Vehicle Telemetry
+// ============================================================================
+
+export interface TelemetryData {
+  id: number;
+  asset_id: string;
+  battery_level: number;
+  km: number;
+  latitude: number | null;
+  longitude: number | null;
+  speed: number;
+  status: 'idle' | 'in_transit' | 'charging' | 'swapping';
+  temperature: number | null;
+  voltage: number | null;
+  current: number | null;
+  oem_source: string;
+  recorded_at: string;
+  created_at: string;
+}
+
+export interface LiveVehicle {
+  vehicle_id: number;
+  vehicle_registration: string;
+  latitude: number;
+  longitude: number;
+  speed: number;
+  battery_level: number;
+  battery_temperature: number;
+  odometer: number;
+  status: 'active' | 'idle' | 'charging' | 'offline';
+  driver_id: number | null;
+  driver_name: string | null;
+  last_updated: string;
+  route_history: Array<{ lat: number; lng: number }>;
+}
+
+export interface TelemetryAlert {
+  type: 'low_battery' | 'high_temperature' | 'offline';
+  severity: 'info' | 'warning' | 'critical';
+  asset_id: string;
+  vehicle: string;
+  message: string;
+  value: number;
+  timestamp: string;
+}
+
+export interface TelemetryStatistics {
+  total_distance: number;
+  average_speed: number;
+  max_speed: number;
+  average_battery: number;
+  min_battery: number;
+  max_battery: number;
+  average_temperature: number;
+  max_temperature: number;
+  data_points: number;
+  period_days: number;
+}
+
+export const TelemetryAPI = {
+  // Get live telemetry for all vehicles (for operator dashboard)
+  async getLiveTelemetry(params?: {
+    vehicle_id?: number;
+    operator_id?: number;
+  }): Promise<{
+    success: boolean;
+    vehicles: LiveVehicle[];
+    count: number;
+    timestamp: string;
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.vehicle_id) queryParams.append('vehicle_id', String(params.vehicle_id));
+    if (params?.operator_id) queryParams.append('operator_id', String(params.operator_id));
+
+    const query = queryParams.toString();
+    return staleWhileRevalidate(
+      `telemetry:live:${query}`,
+      () => client.get(`/telemetry/live${query ? '?' + query : ''}`),
+      5000 // 5 seconds - real-time data
+    );
+  },
+
+  // Get telemetry history for a specific asset
+  async getAssetTelemetry(assetId: string): Promise<TelemetryData[]> {
+    return staleWhileRevalidate(
+      `telemetry:asset:${assetId}`,
+      () => client.get(`/telemetry/${assetId}`),
+      30000 // 30 seconds
+    );
+  },
+
+  // Get latest telemetry for a specific asset
+  async getLatest(assetId: string): Promise<TelemetryData> {
+    return staleWhileRevalidate(
+      `telemetry:latest:${assetId}`,
+      () => client.get(`/telemetry/${assetId}/latest`),
+      5000 // 5 seconds
+    );
+  },
+
+  // Get telemetry statistics for an asset
+  async getStatistics(assetId: string, days: number = 7): Promise<{
+    success: boolean;
+    asset_id: string;
+    statistics: TelemetryStatistics;
+  }> {
+    return staleWhileRevalidate(
+      `telemetry:stats:${assetId}:${days}`,
+      () => client.get(`/telemetry/${assetId}/statistics?days=${days}`),
+      60000 // 1 minute
+    );
+  },
+
+  // Get telemetry alerts
+  async getAlerts(): Promise<{
+    success: boolean;
+    alerts: TelemetryAlert[];
+    count: number;
+  }> {
+    return staleWhileRevalidate(
+      'telemetry:alerts',
+      () => client.get('/telemetry/alerts'),
+      15000 // 15 seconds
+    );
+  },
+};
+
+// Backward compatibility exports for telemetry
+export const getLiveTelemetry = (params?: { vehicle_id?: number; operator_id?: number }) =>
+  TelemetryAPI.getLiveTelemetry(params);
+export const getAssetTelemetry = (assetId: string) => TelemetryAPI.getAssetTelemetry(assetId);
+export const getTelemetryLatest = (assetId: string) => TelemetryAPI.getLatest(assetId);
+export const getTelemetryStatistics = (assetId: string, days?: number) =>
+  TelemetryAPI.getStatistics(assetId, days);
+export const getTelemetryAlerts = () => TelemetryAPI.getAlerts();
+
+// ============================================================================
+// Payout API - Revenue Distribution
+// ============================================================================
+
+export interface PayoutDistributionRequest {
+  asset_id: number;
+  amount: number;
+  period_start: string;
+  period_end: string;
+}
+
+export interface PayoutRecord {
+  id: number;
+  investment_id: number;
+  asset_id: number;
+  investor_id: number;
+  amount: number;
+  period_start: string;
+  period_end: string;
+  distribution_id: number;
+  status: 'pending' | 'completed' | 'failed';
+  blockchain_hash: string | null;
+  processed_at: string | null;
+  failure_reason: string | null;
+  created_at: string;
+  asset?: { name: string };
+  investment?: { ownership_percentage: number };
+}
+
+export interface PayoutDistributionRecord {
+  id: number;
+  asset_id: number;
+  asset_name: string;
+  amount: number;
+  investor_count: number;
+  period_start: string;
+  period_end: string;
+  distributed_at: string;
+  status: 'processing' | 'completed' | 'failed';
+}
+
+export const PayoutAPI = {
+  // Get assets ready for payout distribution
+  async getAssetsForPayout(): Promise<Array<{
+    id: number;
+    name: string;
+    registration_number: string;
+    total_revenue: number;
+    available_for_distribution: number;
+    investor_count: number;
+  }>> {
+    return client.get('/payouts/assets');
+  },
+
+  // Distribute payout to investors
+  async distributePayout(data: PayoutDistributionRequest): Promise<{
+    message: string;
+    distribution: PayoutDistributionRecord;
+    investors_paid: number;
+  }> {
+    const response = await client.post<{
+      message: string;
+      distribution: PayoutDistributionRecord;
+      investors_paid: number;
+    }>('/payouts/distribute', data);
+    // Invalidate related caches
+    apiCache.invalidatePattern(/^investment:/);
+    apiCache.invalidatePattern(/^wallet:/);
+    return response;
+  },
+
+  // Get payout distribution history
+  async getPayoutHistory(): Promise<PayoutDistributionRecord[]> {
+    return staleWhileRevalidate(
+      'payout:history',
+      () => client.get('/payouts/history'),
+      60000 // 1 minute
+    );
+  },
+
+  // Get investor's payout history
+  async getInvestorPayouts(): Promise<{
+    payouts: PayoutRecord[];
+    total_earnings: number;
+  }> {
+    return staleWhileRevalidate(
+      'payout:investor',
+      () => client.get('/payouts/my'),
+      30000
+    );
+  },
+};
+
+// Backward compatibility exports for payout
+export const getAssetsForPayout = () => PayoutAPI.getAssetsForPayout();
+export const distributePayout = (data: PayoutDistributionRequest) => PayoutAPI.distributePayout(data);
+export const getPayoutHistory = () => PayoutAPI.getPayoutHistory();
+export const getInvestorPayouts = () => PayoutAPI.getInvestorPayouts();
+
+// ============================================================================
+// Export API - Data Export Features
+// ============================================================================
+
+export const ExportAPI = {
+  // Export portfolio to CSV
+  async exportPortfolioCsv(): Promise<Blob> {
+    return client.get<Blob>('/export/portfolio.csv');
+  },
+
+  // Export transactions to CSV
+  async exportTransactionsCsv(params?: {
+    from_date?: string;
+    to_date?: string;
+    type?: string;
+  }): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    if (params?.from_date) queryParams.append('from_date', params.from_date);
+    if (params?.to_date) queryParams.append('to_date', params.to_date);
+    if (params?.type) queryParams.append('type', params.type);
+
+    const query = queryParams.toString();
+    return client.get<Blob>(`/export/transactions.csv${query ? '?' + query : ''}`);
+  },
+
+  // Export earnings report (for drivers)
+  async exportEarningsCsv(params?: {
+    from_date?: string;
+    to_date?: string;
+  }): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    if (params?.from_date) queryParams.append('from_date', params.from_date);
+    if (params?.to_date) queryParams.append('to_date', params.to_date);
+
+    const query = queryParams.toString();
+    return client.get<Blob>(`/export/earnings.csv${query ? '?' + query : ''}`);
+  },
+
+  // Export fleet report (for operators)
+  async exportFleetReportCsv(): Promise<Blob> {
+    return client.get<Blob>('/export/fleet.csv');
+  },
+
+  // Export payout report
+  async exportPayoutsCsv(params?: {
+    from_date?: string;
+    to_date?: string;
+  }): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    if (params?.from_date) queryParams.append('from_date', params.from_date);
+    if (params?.to_date) queryParams.append('to_date', params.to_date);
+
+    const query = queryParams.toString();
+    return client.get<Blob>(`/export/payouts.csv${query ? '?' + query : ''}`);
+  },
+};
+
+// Utility function to download blob as file
+export const downloadFile = (blob: Blob, filename: string): void => {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
+
+// ============================================================================
+// Health Check API
+// ============================================================================
+
+export const HealthAPI = {
+  async ping(): Promise<{ status: string }> {
+    // Use raw fetch without auth for health check
+    const response = await fetch(`${API_URL}/ping`);
+    return response.json();
+  },
+
+  async health(): Promise<{
+    status: string;
+    services: Record<string, boolean>;
+    timestamp: string;
+  }> {
+    const response = await fetch(`${API_URL}/health`);
+    return response.json();
+  },
+};
+
+// ============================================================================
+// Helper functions (used by PaymentAPI)
+// ============================================================================
+
+async function apiFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
+  const token = TokenManager.get();
+  const url = endpoint.startsWith('http') ? endpoint : `${API_URL}${endpoint}`;
+
+  return fetch(url, {
+    ...options,
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+}
+
+async function createApiError(response: Response): Promise<ApiError> {
+  let message = `HTTP ${response.status}: ${response.statusText}`;
+  let errors: Record<string, string[]> | undefined;
+
+  try {
+    const data = await response.json();
+    message = data.message || message;
+    errors = data.errors;
+  } catch {}
+
+  return { message, errors, status: response.status };
+}

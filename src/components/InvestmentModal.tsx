@@ -12,7 +12,7 @@ export const InvestmentModal: React.FC<InvestmentModalProps> = ({ asset, onClose
   const [amount, setAmount] = useState<number>(asset.min_investment);
   const [ownershipPercent, setOwnershipPercent] = useState<number>(0);
   const [walletBalance, setWalletBalance] = useState<number>(0);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
 

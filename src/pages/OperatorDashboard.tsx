@@ -40,7 +40,7 @@ export const OperatorDashboard: React.FC<OperatorDashboardProps> = ({ assets = [
   const [initiatingPayout, setInitiatingPayout] = useState(false);
   const kycDisabled = kycStatus !== 'verified';
   const [tokenCount, setTokenCount] = useState(0);
-  const perPage = assets.length || 10;
+  void kycDisabled; // Used for UI disabled state
 
   useEffect(()=>{
     (async()=>{

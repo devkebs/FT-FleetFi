@@ -25,7 +25,7 @@ interface PortfolioSummary {
 }
 
 export default function InvestmentPortfolioPage() {
-  const { user } = useAuth();
+  useAuth(); // Auth context for authentication state
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [loading, setLoading] = useState(true);
